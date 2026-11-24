@@ -29,7 +29,7 @@
       <div class="flex flex-wrap items-center gap-2">
         <button onclick="showBulkInputDashboard()" id="navBulkBtn"
           class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition">
-          ⚡ Input Kinerja Massal
+          ⚡ Input Kinerja Harian
         </button>
         <button onclick="openAddEmployeeModal()"
           class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition">
@@ -69,7 +69,7 @@
       <div id="employeeGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
 
-    <!-- VIEW 2: DASHBOARD KHUSUS INPUT KINERJA KE SEMUA PEGAWAI SEKALIGUS -->
+    <!-- VIEW 2: DASHBOARD KHUSUS INPUT KINERJA HARIAN (SEMUA NAMA) -->
     <section id="bulkInputView" class="hidden">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <button onclick="showEmployeeList()"
@@ -77,8 +77,28 @@
           ← Kembali ke Daftar Pegawai
         </button>
         <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-          Master Aktivitas CANDI BADUNG Terintegrasi
+          Master Aktivitas CANDI BADUNG (19 Item)
         </span>
+      </div>
+
+      <!-- DAFTAR SEMUA NAMA AKTIVITAS HARIAN (TERLIHAT LANGSUNG) -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 mb-4">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-slate-900">Daftar Semua Nama Aktivitas Harian (CANDI BADUNG)</h2>
+            <p class="text-xs text-slate-500">Klik <strong>Pilih</strong> untuk mengisi form otomatis, atau klik <strong>+ Kirim ke Semua</strong> untuk langsung menambahkan ke semua pegawai terpilih.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <input type="text" id="presetSearchInput" oninput="renderAllPresetList()" placeholder="🔍 Filter nama aktivitas..."
+              class="px-3.5 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            <button type="button" id="bulkInsertAllPresetsBtn" onclick="insertAllPresetActivities()"
+              class="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition">
+              📥 Masukkan Semua 19 Aktivitas
+            </button>
+          </div>
+        </div>
+
+        <div id="allPresetActivitiesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-[380px] overflow-y-auto pr-1"></div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -86,24 +106,13 @@
         <div class="lg:col-span-7">
           <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
             <div class="mb-5 pb-4 border-b border-slate-100">
-              <h2 class="text-lg font-bold text-slate-900">Dashboard Input Kinerja Harian (Semua Nama)</h2>
+              <h2 class="text-lg font-bold text-slate-900">Form Input Kinerja Harian (Semua Nama)</h2>
               <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
-                Pilih aktivitas dari daftar <strong>CANDI BADUNG</strong> (waktu & indeks terisi otomatis) atau ketik manual untuk ditambahkan ke <strong>seluruh pegawai</strong>.
+                Sesuaikan detail aktivitas di bawah ini lalu tambahkan ke <strong>seluruh pegawai</strong> secara bersamaan.
               </p>
             </div>
 
             <form id="bulkActivityForm" onsubmit="addBulkActivity(event)" class="space-y-4">
-              <!-- Pilih Cepat Template Aktivitas CANDI BADUNG -->
-              <div class="bg-teal-50/70 border border-teal-200 rounded-xl p-3.5">
-                <label class="block text-xs font-bold text-teal-800 mb-1.5">
-                  ⚡ Pilih Cepat Nama Aktivitas (Standar CANDI BADUNG)
-                </label>
-                <select id="presetActivitySelect" onchange="applyPresetActivity()"
-                  class="w-full px-3 py-2.5 text-xs sm:text-sm border border-teal-300 rounded-xl bg-white text-slate-800 font-medium focus:ring-2 focus:ring-teal-500 outline-none">
-                  <option value="">-- Input Manual / Ketik Aktivitas Sendiri --</option>
-                </select>
-              </div>
-
               <div>
                 <label class="block text-xs font-semibold text-slate-700 mb-1">Eselon</label>
                 <select id="bulkEselon" required
@@ -118,7 +127,7 @@
               <div>
                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Aktivitas</label>
                 <textarea id="bulkActivityName" rows="3" required
-                  placeholder="Pilih dari menu di atas atau ketik uraian aktivitas..."
+                  placeholder="Klik salah satu aktivitas di atas atau ketik uraian aktivitas..."
                   class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"></textarea>
               </div>
 
@@ -167,20 +176,8 @@
           </div>
         </div>
 
-        <!-- Panel Daftar Pegawai Penerima & Input Paket Semua Aktivitas -->
+        <!-- Panel Daftar Pegawai Penerima & Riwayat Input Hari Ini -->
         <div class="lg:col-span-5 space-y-5">
-          <!-- Paket Import Semua 19 Aktivitas -->
-          <div class="bg-amber-50/80 rounded-2xl border border-amber-200 p-5 shadow-sm">
-            <h3 class="text-sm font-bold text-amber-900 mb-1">Import Paket Master Aktivitas (19 Item)</h3>
-            <p class="text-xs text-amber-800/90 mb-3">
-              Masukkan seluruh 19 daftar aktivitas CANDI BADUNG sekaligus ke pegawai yang dicentang untuk hari ini.
-            </p>
-            <button type="button" id="bulkInsertAllPresetsBtn" onclick="insertAllPresetActivities()"
-              class="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition">
-              📥 Masukkan Semua 19 Aktivitas ke Pegawai Terpilih
-            </button>
-          </div>
-
           <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
             <div class="flex items-center justify-between mb-3">
               <h3 class="text-sm font-bold text-slate-800">Daftar Pegawai Penerima (<span id="recipientCountBadge">0</span>)</h3>
@@ -448,27 +445,110 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
     let employees = [];
     let reports = [];
 
-    // Isi dropdown preset aktivitas CANDI BADUNG
-    function populatePresetDropdown() {
-      const select = document.getElementById("presetActivitySelect");
-      select.innerHTML = `<option value="">-- Input Manual / Ketik Aktivitas Sendiri --</option>` +
-        PRESET_ACTIVITIES.map((item, idx) => {
-          const poin = item.minutes * item.index;
-          return `<option value="${idx}">${idx + 1}. ${item.title} (${item.minutes} × ${item.index} = ${poin} Poin)</option>`;
-        }).join("");
+    // Render seluruh 19 daftar aktivitas harian langsung terlihat di menu Input Kinerja Harian
+    function renderAllPresetList() {
+      const container = document.getElementById("allPresetActivitiesContainer");
+      if (!container) return;
+
+      const keyword = (document.getElementById("presetSearchInput")?.value || "").toLowerCase().trim();
+      const filtered = PRESET_ACTIVITIES.map((item, idx) => ({ ...item, originalIdx: idx }))
+        .filter(item => item.title.toLowerCase().includes(keyword));
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="col-span-full text-center py-6 text-xs text-slate-400">Tidak ada nama aktivitas yang cocok dengan "${keyword}".</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(item => {
+        const poin = item.minutes * item.index;
+        return `
+          <div class="p-3 rounded-xl border border-slate-200 hover:border-teal-400 bg-slate-50/60 hover:bg-teal-50/40 transition flex flex-col justify-between gap-2">
+            <div>
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-semibold text-slate-800 leading-snug">
+                  <span class="text-teal-700 font-bold mr-1">${item.originalIdx + 1}.</span>${item.title}
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                <span class="px-2 py-0.5 rounded bg-white border border-slate-200 text-[11px] font-medium text-slate-600">
+                  ⏱ ${item.minutes} Menit
+                </span>
+                <span class="px-2 py-0.5 rounded bg-amber-50 border border-amber-200/80 text-[11px] font-semibold text-amber-800">
+                  ${item.minutes} × ${item.index} = ${poin} Poin
+                </span>
+              </div>
+            </div>
+            <div class="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-200/60">
+              <button type="button" onclick="selectPresetToForm(${item.originalIdx})"
+                class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition">
+                Pilih ke Form
+              </button>
+              <button type="button" onclick="quickInsertSinglePreset(${item.originalIdx})"
+                class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-teal-600 hover:bg-teal-700 text-white transition">
+                + Kirim ke Semua
+              </button>
+            </div>
+          </div>
+        `;
+      }).join("");
     }
 
-    function applyPresetActivity() {
-      const idx = document.getElementById("presetActivitySelect").value;
-      if (idx === "") return;
-
-      const preset = PRESET_ACTIVITIES[Number(idx)];
+    function selectPresetToForm(idx) {
+      const preset = PRESET_ACTIVITIES[idx];
       if (!preset) return;
 
       document.getElementById("bulkActivityName").value = preset.title;
       document.getElementById("bulkMinutes").value = preset.minutes;
       document.getElementById("bulkIndex").value = String(preset.index);
       updateBulkCalculation();
+      showToast(`Aktivitas "${preset.title}" dipilih ke form.`);
+    }
+
+    async function quickInsertSinglePreset(idx) {
+      const preset = PRESET_ACTIVITIES[idx];
+      if (!preset) return;
+
+      const selectedIds = Array.from(document.querySelectorAll(".bulk-emp-checkbox:checked")).map(cb => cb.value);
+      if (selectedIds.length === 0) {
+        showToast("Pilih minimal 1 pegawai penerima!");
+        return;
+      }
+
+      const reportDate = getTodayISO();
+      const eselon = document.getElementById("bulkEselon").value;
+      const points = Number((preset.minutes * preset.index).toFixed(2));
+      const baseTime = Date.now();
+
+      const newBatchReports = selectedIds.map((empId, i) => {
+        const existingEmpReports = reports.filter(r => r.employee_id === empId && r.report_date === reportDate);
+        const startTime = existingEmpReports.length > 0
+          ? existingEmpReports[existingEmpReports.length - 1].end_time
+          : "08:00";
+        const endTime = addMinutesToTime(startTime, preset.minutes);
+
+        return {
+          id: `rep-${baseTime}-${i}`,
+          employee_id: empId,
+          report_date: reportDate,
+          start_time: startTime,
+          end_time: endTime,
+          duration_minutes: preset.minutes,
+          title: preset.title,
+          output: `1 Kegiatan (${eselon})`,
+          eselon,
+          index_val: preset.index,
+          points,
+          status: "Selesai"
+        };
+      });
+
+      try {
+        await saveBatchToStorage(newBatchReports);
+        renderBulkRecentHistory();
+        showToast(`"${preset.title}" ditambahkan ke ${selectedIds.length} pegawai!`);
+      } catch (err) {
+        showToast("Gagal menyimpan: " + err.message);
+      }
     }
 
     // Inisialisasi Tanggal Hari Ini
@@ -509,6 +589,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       selectedEmployeeId = null;
       hideAllViews();
       document.getElementById("bulkInputView").classList.remove("hidden");
+      renderAllPresetList();
       renderBulkRecipients();
       updateBulkCalculation();
       renderBulkRecentHistory();
@@ -783,7 +864,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       try {
         await saveBatchToStorage(newBatchReports);
         document.getElementById("bulkActivityName").value = "";
-        document.getElementById("presetActivitySelect").value = "";
         renderBulkRecentHistory();
         showToast(`Berhasil ditambahkan ke ${selectedIds.length} pegawai sekaligus!`);
       } catch (err) {
@@ -849,7 +929,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
         showToast("Gagal import massal: " + err.message);
       } finally {
         btn.disabled = false;
-        btn.textContent = "📥 Masukkan Semua 19 Aktivitas ke Pegawai Terpilih";
+        btn.textContent = "📥 Masukkan Semua 19 Aktivitas";
       }
     }
 
@@ -900,7 +980,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       document.getElementById("selectedName").textContent = emp.name;
       document.getElementById("selectedMeta").textContent = `NIP: ${emp.nip} • ${emp.role} • ${emp.division}`;
 
-      // Default kosongkan filter tanggal agar tampil SEMUA TANGGAL
       document.getElementById("reportDate").value = "";
       document.getElementById("activitySearchInput").value = "";
 
@@ -936,10 +1015,9 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
     }
 
     function renderReports() {
-      const selectedDate = document.getElementById("reportDate").value; // Jika kosong = tampilkan semua tanggal
+      const selectedDate = document.getElementById("reportDate").value;
       const searchQuery = (document.getElementById("activitySearchInput").value || "").toLowerCase().trim();
 
-      // Update tampilan tombol "Semua Tanggal" & label periode
       const resetBtn = document.getElementById("resetDateFilterBtn");
       const periodLabel = document.getElementById("periodLabelText");
       if (selectedDate) {
@@ -950,7 +1028,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
         periodLabel.textContent = "Semua Tanggal";
       }
 
-      // Ambil laporan pegawai (semua tanggal atau filter tanggal tertentu), urutkan tanggal terbaru
       const scopedReports = reports
         .filter(r => r.employee_id === selectedEmployeeId && (!selectedDate || r.report_date === selectedDate))
         .sort((a, b) => (b.report_date || "").localeCompare(a.report_date || ""));
@@ -962,7 +1039,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       document.getElementById("totalDurationText").textContent = formatDuration(totalMinutes);
       document.getElementById("totalPointsText").textContent = `${formatNum(totalPoints)} Poin`;
 
-      // Filter berdasarkan kata kunci pencarian aktivitas
       const filtered = scopedReports.filter(r =>
         r.title.toLowerCase().includes(searchQuery) ||
         (r.eselon && r.eselon.toLowerCase().includes(searchQuery)) ||
@@ -1063,7 +1139,7 @@ Poin: ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin`;
       showToast("Detail kegiatan berhasil disalin!");
     }
 
-    // Salin Rekap Keseluruhan (Semua Tanggal atau Tanggal Terpilih)
+    // Salin Rekap Keseluruhan
     function copyAllRecap() {
       const emp = employees.find(e => e.id === selectedEmployeeId);
       const selectedDate = document.getElementById("reportDate").value;
@@ -1187,7 +1263,7 @@ ${lines}
     }
 
     // Start App
-    populatePresetDropdown();
+    renderAllPresetList();
     initDatabase();
   </script>
 </body>
