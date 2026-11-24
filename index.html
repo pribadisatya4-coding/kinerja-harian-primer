@@ -69,7 +69,7 @@
       <div id="employeeGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
 
-    <!-- VIEW 2: DASHBOARD KHUSUS INPUT KINERJA HARIAN (SEMUA NAMA) -->
+    <!-- VIEW 2: DASHBOARD KHUSUS INPUT, EDIT & HAPUS KINERJA HARIAN -->
     <section id="bulkInputView" class="hidden">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <button onclick="showEmployeeList()"
@@ -77,7 +77,7 @@
           ← Kembali ke Daftar Pegawai
         </button>
         <span class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-          ✓ Anti-Duplikasi Aktif (Hanya mengisi yang belum sinkron)
+          ✓ Anti-Duplikasi Aktif • <span id="totalMasterBadge">192</span> Master Aktivitas CANDI BADUNG
         </span>
       </div>
 
@@ -89,11 +89,11 @@
             <p class="text-xs text-slate-500">Aktivitas yang sudah masuk pada pegawai hari ini otomatis dilewati agar tidak ganda.</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <input type="text" id="presetSearchInput" oninput="renderAllPresetList()" placeholder="🔍 Filter nama aktivitas..."
+            <input type="text" id="presetSearchInput" oninput="renderAllPresetList()" placeholder="🔍 Cari dari 192 aktivitas..."
               class="px-3.5 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" />
             <button type="button" id="bulkInsertAllPresetsBtn" onclick="insertAllPresetActivities()"
               class="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition">
-              📥 Masukkan Semua 19 Aktivitas
+              📥 Masukkan Semua (<span id="presetCountBtnLabel">192</span>) Aktivitas
             </button>
           </div>
         </div>
@@ -103,7 +103,7 @@
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <!-- Form Input Massal -->
-        <div class="lg:col-span-7">
+        <div class="lg:col-span-6">
           <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
             <div class="mb-5 pb-4 border-b border-slate-100">
               <h2 class="text-lg font-bold text-slate-900">Form Input Kinerja Harian (Semua Nama)</h2>
@@ -148,6 +148,7 @@
                     <option value="1.75">1.75</option>
                     <option value="2">2</option>
                     <option value="3">3</option>
+                    <option value="4">4</option>
                   </select>
                 </div>
 
@@ -176,8 +177,8 @@
           </div>
         </div>
 
-        <!-- Panel Daftar Pegawai Penerima & Riwayat Input Hari Ini -->
-        <div class="lg:col-span-5 space-y-5">
+        <!-- Panel Daftar Pegawai Penerima & Kelola (Edit / Hapus) Kinerja Harian -->
+        <div class="lg:col-span-6 space-y-5">
           <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
             <div class="flex items-center justify-between mb-3">
               <h3 class="text-sm font-bold text-slate-800">Daftar Pegawai Penerima (<span id="recipientCountBadge">0</span>)</h3>
@@ -186,13 +187,20 @@
               </button>
             </div>
             <p class="text-xs text-slate-500 mb-3">Pegawai yang sudah memiliki aktivitas yang sama hari ini tidak akan terisi ganda.</p>
-            <div id="bulkRecipientList" class="max-h-56 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl px-3"></div>
+            <div id="bulkRecipientList" class="max-h-48 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl px-3"></div>
           </div>
 
-          <!-- Riwayat Input Massal Hari Ini -->
+          <!-- Kelola (Edit & Hapus) Kinerja Harian Tercatat -->
           <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-            <h3 class="text-sm font-bold text-slate-800 mb-3">Riwayat Input Hari Ini</h3>
-            <div id="bulkRecentHistory" class="space-y-2.5 text-xs"></div>
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div>
+                <h3 class="text-sm font-bold text-slate-800">Kelola Kinerja Harian Tercatat (Edit / Hapus)</h3>
+                <p class="text-[11px] text-slate-500">Edit atau hapus aktivitas yang sudah masuk ke pegawai.</p>
+              </div>
+              <input type="text" id="manageHistorySearch" oninput="renderBulkRecentHistory()" placeholder="Cari riwayat..."
+                class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            </div>
+            <div id="bulkRecentHistory" class="space-y-2.5 text-xs max-h-80 overflow-y-auto pr-1"></div>
           </div>
         </div>
       </div>
@@ -273,6 +281,73 @@
       </div>
     </section>
   </main>
+
+  <!-- Modal Edit Kinerja Harian Massal -->
+  <div id="editBulkReportModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-slate-900">Edit Kinerja Harian</h3>
+        <button onclick="closeEditBulkReportModal()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+      </div>
+      <form onsubmit="saveEditedBulkReport(event)" class="space-y-3.5">
+        <input type="hidden" id="editBulkOrigTitle" />
+        <input type="hidden" id="editBulkOrigDate" />
+        <input type="hidden" id="editBulkOrigMinutes" />
+        <input type="hidden" id="editBulkOrigIndex" />
+        <input type="hidden" id="editBulkOrigEselon" />
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Eselon</label>
+          <select id="editBulkEselon" required
+            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-teal-500">
+            <option value="Non-Eselon / JF / Pelaksana">Non-Eselon / JF / Pelaksana</option>
+            <option value="Eselon IV">Eselon IV</option>
+            <option value="Eselon III">Eselon III</option>
+            <option value="Eselon II">Eselon II</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Aktivitas</label>
+          <textarea id="editBulkTitle" rows="3" required
+            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500"></textarea>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Waktu (Menit)</label>
+            <input type="number" id="editBulkMinutes" min="1" max="1440" oninput="updateEditBulkPreview()" required
+              class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Indeks</label>
+            <select id="editBulkIndex" onchange="updateEditBulkPreview()" required
+              class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-teal-500">
+              <option value="1">1</option>
+              <option value="1.25">1.25</option>
+              <option value="1.5">1.5</option>
+              <option value="1.75">1.75</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Point</label>
+            <input type="text" id="editBulkPoints" readonly
+              class="w-full px-3 py-2 text-sm font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded-xl outline-none" />
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeEditBulkReportModal()"
+            class="px-4 py-2 text-sm rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Batal</button>
+          <button type="submit"
+            class="px-4 py-2 text-sm font-semibold rounded-xl bg-teal-600 hover:bg-teal-700 text-white">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Modal Tambah Pegawai -->
   <div id="addEmployeeModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-4 z-50">
@@ -441,7 +516,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
 
   <script>
     // =========================================================================
-    // MASTER DATA AKTIVITAS CANDI BADUNG (DARI DOKUMEN AKTIVITAS YANKES.pdf)
+    // MASTER DATA AKTIVITAS CANDI BADUNG (LENGKAP 8 HALAMAN AKTIVITAS YANKES_2.pdf)
     // =========================================================================
     const PRESET_ACTIVITIES = [
       { title: "Menyiapkan Data Capaian Selama 1 Tahun Sebelumnya", minutes: 90, index: 2 },
@@ -462,7 +537,244 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       { title: "Memverifikasi Ulang Kelengkapan Berkas Perbaikan Dari Pelaku Usaha", minutes: 30, index: 3 },
       { title: "Menyiapkan Konsep Surat Undangan Visitasi", minutes: 20, index: 1 },
       { title: "Mengetik Surat Undangan Visitasi", minutes: 15, index: 1 },
-      { title: "Memeriksa Format Dan Kelengkapan Surat Undangan Visitasi", minutes: 10, index: 2 }
+      { title: "Memeriksa Format Dan Kelengkapan Surat Undangan Visitasi", minutes: 10, index: 2 },
+      { title: "Melaksanakan Kegiatan Visitasi", minutes: 240, index: 3 },
+      { title: "Memverifikasi Dokumen Sesuai Dengan Kertas Kerja Penilaian", minutes: 45, index: 3 },
+      { title: "Melakukan Peninjauan Lapangan Sesuai Dengan Kertas Kerja Penilaian", minutes: 120, index: 4 },
+      { title: "Menyusun Berita Acara Penilaian Kesesuaian", minutes: 60, index: 2 },
+      { title: "Memeriksa Format Dan Kelengkapan Berita Acara Penilaian Kesesuaian", minutes: 20, index: 2 },
+      { title: "Membuat Pengesahan Berita Acara Penilaian Kesesuaian Ke Tim Visitasi Dan Pimpinan", minutes: 60, index: 2 },
+      { title: "Menyusun Berita Acara Perbaikan", minutes: 90, index: 2 },
+      { title: "Menerima Dokumen Perbaikan Dari Pelaku Usaha", minutes: 10, index: 2 },
+      { title: "Memverifikasi Dokumen Perbaikan Dari Pelaku Usaha", minutes: 30, index: 2 },
+      { title: "Menyiapkan Konsep Berita Acara Perbaikan", minutes: 40, index: 2 },
+      { title: "Mengetik Berita Acara Perbaikan", minutes: 20, index: 1 },
+      { title: "Memeriksa Format Dan Kelengkapan Berita Acara Perbaikan", minutes: 20, index: 2 },
+      { title: "Menyusun Rekomendasi Sertifikat Standar", minutes: 60, index: 2 },
+      { title: "Menyiapkan Konsep Rekomendasi Sertifikat Standar", minutes: 40, index: 2 },
+      { title: "Mengetik Rekomendasi Sertifikat Standar", minutes: 20, index: 1 },
+      { title: "Memeriksa Format Dan Kelengkapan Rekomendasi Sertifikat Standar", minutes: 15, index: 2 },
+      { title: "Melakukan Verifikasi Permohonan Sertifikat Standar Aplikasi Oss", minutes: 40, index: 2 },
+      { title: "Menyusun Rancangan Instrument Pembinaan Dan Pengawasan Perijinan Klinik Pratma", minutes: 240, index: 2 },
+      { title: "Menentukan Target Dan Sasaran Pembinaan Dan Pengawasan Klinik Pratama", minutes: 45, index: 2 },
+      { title: "Merekap Data Dari Aplikasi Daftar Fasyankes Online", minutes: 30, index: 2 },
+      { title: "Menganalisa Data Dari Aplikasi Daftar Fasyankes Online", minutes: 90, index: 2 },
+      { title: "Menyiapkan Konsep Surat Undangan Pembinaan Dan Pengawasan Mutu Fasyankes", minutes: 20, index: 2 },
+      { title: "Memeriksa Format Dan Kelengkapan Surat Undangan Pembinaan Dan Pengawasan", minutes: 10, index: 2 },
+      { title: "Mengirim Dan Mengkoordinasikan Surat Undangan Pembinaan Dan Pengawasan", minutes: 25, index: 2 },
+      { title: "Membuat Surat Perintah Tugas Pembinaan Dan Pengawasan Klinik Pratama", minutes: 30, index: 2 },
+      { title: "Menyiapkan Konsep Spt", minutes: 30, index: 2 },
+      { title: "Memeriksa Format Dan Kelengkapan Surat Perintah Tugas Visitasi", minutes: 10, index: 2 },
+      { title: "Melaksanakan Kegiatan Pembinaan Dan Pengawasan Klinik Pratama", minutes: 240, index: 3 },
+      { title: "Memverifikasi Data Sesuai Dengan Instrumen Binwas", minutes: 30, index: 2 },
+      { title: "Melakukan Peninjauan Lapangan Sesuai Dengan Instrumen Binwas", minutes: 150, index: 3 },
+      { title: "Mengetik Laporan Kegiatan Pembinaan Dan Pengawasan", minutes: 90, index: 2 },
+      { title: "Memeriksa Format Dan Kelengkapan Laporan Kegiatan Pembinaan Dan Pengawasan", minutes: 20, index: 2 },
+      { title: "Membuat Pengesahan Laporan Kegiatan Pembinaan Dan Pengawasan Oleh Pimpinan", minutes: 20, index: 2 },
+      { title: "Melakukan Verifikasi Permohonan Registrasi Fasyankes", minutes: 20, index: 2 },
+      { title: "Memverifikasi Data Permohonan User Fasyankes", minutes: 15, index: 2 },
+      { title: "Memverifikasi Data Permohonan Kode Fasyankes", minutes: 20, index: 2 },
+      { title: "Menyusun Rka Peningkatan Mutu Pelayanan Fasilitas Kesehatan", minutes: 240, index: 2 },
+      { title: "Memeriksa Format Dan Kelengkapan Rka", minutes: 20, index: 2 },
+      { title: "Melakukan Desk Rka Di Bappeda", minutes: 60, index: 2 },
+      { title: "Melakukan Desk Di Bpkad", minutes: 90, index: 2 },
+      { title: "Menyiapkan Konsep Kak", minutes: 120, index: 2 },
+      { title: "Mengetik Kak", minutes: 120, index: 1 },
+      { title: "Memeriksa Format Dan Kelengkapan Kak", minutes: 20, index: 2 },
+      { title: "Mengadministrasikan Dan Mengesahkan Kak", minutes: 25, index: 2 },
+      { title: "Menyusun Sk Kegiatan Peningkatan Mutu Pelayanan Fasilitas Kesehatan", minutes: 90, index: 2 },
+      { title: "Menghimpun Bahan Dan Data Untuk Penyusunan Rancangan Produk Hukum.", minutes: 120, index: 2 },
+      { title: "Mengumpulkan Peraturan Perundang-Undangan Sebagai Bahan Penyusunan Rancangan.", minutes: 90, index: 2 },
+      { title: "Menyiapkan Konsep Sk Peningkatan Mutu Pelayanan Fasilitas Kesehatan", minutes: 60, index: 2 },
+      { title: "Mengetik Sk Peningkatan Mutu Pelayanan Fasilitas Kesehatan", minutes: 30, index: 1 },
+      { title: "Memeriksa Format Dan Kelengkapan Sk Peningkatan Mutu Pelayanan Fasilitas Kesehatan", minutes: 20, index: 2 },
+      { title: "Melakukan Konsultasi Draft Sk Peningkatan Mutu Pelayanan Fasilitas Kesehatanke Bagian Hukum Dinas Kesehatan", minutes: 60, index: 2 },
+      { title: "Melakukan Konsultasi Draft Sk Peningkatan Mutu Pelayanan Fasilitas Kesehatanke Bagian Hukum Setda", minutes: 90, index: 2 },
+      { title: "Merevisi Sk Peningkatan Mutu Pelayanan Fasilitas Kesehatan", minutes: 60, index: 2 },
+      { title: "Mengadministrasikan Dan Memberi Nomor Sk Peningkatan Mutu Pelayanan Fasilitas Kesehatan", minutes: 20, index: 1 },
+      { title: "Mengirimkan Soft Copy Draft Produk Hukum Keputusan Final Bupati Berupa Word Ke Email", minutes: 10, index: 1 },
+      { title: "Mengarsipkan Sk Peningkatan Mutu Pelayanan Fasilitas Kesehatan", minutes: 10, index: 1 },
+      { title: "Memeriksa Kelengkapan Surat Pertanggung Jawaban Atk, Bahan Komputer, Kertas Dan Cover Peningkatan Mutu Pelayanan Fasilitas Kesehatan", minutes: 30, index: 2 },
+      { title: "Memeriksa Referensi Harga Satuan Dengan Rekanan Dan Pembandingnya Pada Aplikasi Inaproc Versi 6", minutes: 30, index: 2 },
+      { title: "Mengajukan Spj Ke Bagian Keuangan", minutes: 30, index: 2 },
+      { title: "Memeriksa Kelengkapan Surat Pertanggung Jawaban Workshop Peningkatan Mutu Pelayanan Fasilitas Kesehatan", minutes: 30, index: 2 },
+      { title: "Mengkoordinir Dan Memeriksa Surat Permohonan Dana Di Bagian Keuangan", minutes: 20, index: 2 },
+      { title: "Memeriksa Surat Permohonan Narasumber", minutes: 10, index: 2 },
+      { title: "Memeriksa Surat Pemangilan Peserta", minutes: 10, index: 2 },
+      { title: "Menyusun Jadwal Kegiatan", minutes: 45, index: 1 },
+      { title: "Menyusun Laporan Hasil Workshop", minutes: 150, index: 2 },
+      { title: "Menyusun Daftar Hadir Narasumber", minutes: 15, index: 1 },
+      { title: "Memeriksa Daftar Penerimaan Honorarium Narasumber", minutes: 20, index: 2 },
+      { title: "Menyusun Instrument Monev Upaya Peningkatan Mutu Fasyankes", minutes: 180, index: 2 },
+      { title: "Menganalisis Bahan Dan Data Untuk Penyusunan Instrumen Sesuai Dengan Peraturan Perundang-Undangan Yang Berlaku", minutes: 120, index: 2 },
+      { title: "Menyiapkan Konsep Instrumen Monev", minutes: 60, index: 2 },
+      { title: "Mengetik Instrumen Monev", minutes: 45, index: 1 },
+      { title: "Memeriksa Format Dan Kelengkapan Instrumen Monev", minutes: 20, index: 2 },
+      { title: "Menyusun Laporan Kegiatan Monev Upaya Peningkatan Mutu Di Klinik Pratama", minutes: 120, index: 2 },
+      { title: "Memantau Pelaporan Inm Di Aplikasi Mutu Fasyankes", minutes: 30, index: 2 },
+      { title: "Memantau Pelaporan Ikp Di Aplikasi Mutu Fasyankes", minutes: 30, index: 2 },
+      { title: "Memantau Pelaporan Rekam Medis Elektronik (Rme) Di Aplikasi Satusehat", minutes: 30, index: 2 },
+      { title: "Memverifikasi Laporan Mutu Puskesmas", minutes: 60, index: 2 },
+      { title: "Memverifikasi Laporan Penilaian Kinerja Puskesmas", minutes: 90, index: 2 },
+      { title: "Menyusun Rka Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 120, index: 2 },
+      { title: "Menyiapkan Konsep Rka", minutes: 60, index: 2 },
+      { title: "Mengetik Rka", minutes: 60, index: 2 },
+      { title: "Memeriksa Rka Hasil Input Di Sipd Pada Renja", minutes: 30, index: 2 },
+      { title: "Memeriksa Rka Hasil Input Di Sipd Pada Penganggaran", minutes: 30, index: 2 },
+      { title: "Memeriksa Rka Hasil Input Di Sipd Penatausahaan", minutes: 30, index: 2 },
+      { title: "Memeriksa Rka Di Aplikasi Sirup", minutes: 20, index: 2 },
+      { title: "Menyusun Kak Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 90, index: 2 },
+      { title: "Mengarsipkan Kak", minutes: 10, index: 1 },
+      { title: "Menyusun Sk Kegiatan Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 120, index: 2 },
+      { title: "Menyiapkan Konsep Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 90, index: 2 },
+      { title: "Mengetik Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 40, index: 2 },
+      { title: "Memeriksa Format Dan Kelengkapan Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 20, index: 2 },
+      { title: "Melakukan Konsultasi Draft Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kotanke Bagian Hukum Dinas Kesehatan", minutes: 60, index: 2 },
+      { title: "Melakukan Konsultasi Draft Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota Ke Bagian Hukum Setda", minutes: 90, index: 2 },
+      { title: "Merevisi Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 45, index: 2 },
+      { title: "Mengadministrasikan Dan Memberi Nomor Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 15, index: 2 },
+      { title: "Mengarsipkan Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 10, index: 2 },
+      { title: "Mengkoordinir Penyusunan Surat Pertanggung Jawaban Atk, Bahan Komputer, Kertas Dan Cover Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 120, index: 2 },
+      { title: "Mengkoordinir Pengajuan Surat Permohonan Dana Di Bagian Keuangan", minutes: 60, index: 2 },
+      { title: "Memeriksa Spj Sebelum Diajukan Ke Bagian Keuangan", minutes: 30, index: 2 },
+      { title: "Mengkoordinir Penyusunan Surat Pertanggung Jawaban Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 180, index: 2 },
+      { title: "Mengkoordinir Penyusunan Jadwal Kegiatan Pendampingan", minutes: 60, index: 2 },
+      { title: "Melaksanakan Pendampingan Re Akreditasi", minutes: 240, index: 2 },
+      { title: "Menyusun Laporan Hasil Pendampingan Re-Akreditasi", minutes: 120, index: 2 },
+      { title: "Memverifikasi Dan Memberikan Umpan Balik (Feed Back) Perencanaan Perbaikan Strategis (Pps) Klinik Pratama Pada Akun Dfo", minutes: 30, index: 2 },
+      { title: "Memverifikasi Dan Memberikan Umpan Balik (Feed Back) Perencanaan Perbaikan Strategis (Pps) Puskesmas Pada Akun Dfo", minutes: 45, index: 2 },
+      { title: "Menyiapkan Konsep Rka Pengembangan Puskesmas", minutes: 120, index: 2 },
+      { title: "Memeriksa Rka Pengembangan Puskesmas Yang Diinput Di Sipd Pada Renja", minutes: 60, index: 2 },
+      { title: "Melakukan Desk Rka Pengembangan Puskesmas Di Bappeda", minutes: 90, index: 2 },
+      { title: "Memeriksa Rka Pengembangan Puskesmas Di Sipd Pada Penganggaran", minutes: 60, index: 2 },
+      { title: "Mengkoordinir Pengajuan Surat Pertanggung Jawaban Atk, Bahan Komputer, Kertas Dan Cover Pengembangan Puskesmas", minutes: 60, index: 2 },
+      { title: "Memeiksa Surat Permohonan Dana Yang Akan Diajukan Di Bagian Keuangan", minutes: 15, index: 2 },
+      { title: "Melaksankan Pengadaan Ded", minutes: 60, index: 2 },
+      { title: "Menyusun Draft Kontrak Ded", minutes: 120, index: 2 },
+      { title: "Menyusun Draft Ssuk Dan Sskk Ded", minutes: 90, index: 2 },
+      { title: "Menyusun Boq", minutes: 240, index: 2 },
+      { title: "Menyusun Hps", minutes: 180, index: 3 },
+      { title: "Menyusun Datang Dukung Hps", minutes: 120, index: 2 },
+      { title: "Menyusun Kak", minutes: 150, index: 2 },
+      { title: "Membuat Nota Dinas", minutes: 25, index: 2 },
+      { title: "Mengupload Dokumen Pendukung Berupa Rka, Boq, Hps, Data Dukung Hps, Kak, Rup, Nota Dinas, Ssuk, Sskk Dan Draft Kontrak Di Aplikasi E-Simpel", minutes: 45, index: 2 },
+      { title: "Mengupload Dokumen Pendukung Berupa Rka, Boq, Hps, Data Dukung Hps, Kak, Rup, Nota Dinas, Ssuk, Sskk Dan Draft Kontrak Di Aplikasi Ukpbj", minutes: 10, index: 2 },
+      { title: "Membuat Dokumen Sppbj Setelah Munculnya Berita Acara Hasil Pemilihan", minutes: 40, index: 2 },
+      { title: "Menyiapkan Absensi Rapat Pra Kontrak Ded", minutes: 10, index: 2 },
+      { title: "Menyiapkan Perangkat Berupa Komputer/Laptop Dan Sound Sistem Untuk Rapat Pra Kontrak Ded", minutes: 20, index: 2 },
+      { title: "Menyiapkan Konsumsi Untuk Rapat Pra Kontrak Ded", minutes: 20, index: 2 },
+      { title: "Menyiapkan Print Out Draft Kontrak Ded", minutes: 20, index: 2 },
+      { title: "Mereview Keabsahan Dokumen Rekanan Pemenang", minutes: 60, index: 3 },
+      { title: "Melakukan Klarifikasi Ketersediaan Tenaga Ahli (Personel) Yang Sudah Ditawarkan Rekanan Pemenang", minutes: 45, index: 2 },
+      { title: "Melaksanakan Rapat Pra Kontrak Ded", minutes: 120, index: 3 },
+      { title: "Menyusun Berita Acara Pra Kontrak Ded", minutes: 60, index: 2 },
+      { title: "Membuat Dokumen Kontrak/Surat Pesanan/Surat Perintah Kerja Untuk Ded", minutes: 90, index: 3 },
+      { title: "Membuat Dokumen Spmk Untuk Ded", minutes: 45, index: 2 },
+      { title: "Melakukan Serah Terima Personil Dan Lokasi Bersama Rekanan", minutes: 20, index: 2 },
+      { title: "Rapat Evaluasi Ded Bersama User Dan Rekanan", minutes: 150, index: 3 },
+      { title: "Meminjam Dan Menyiapkan Ruangan Rapat Evaluasi Ded", minutes: 30, index: 1 },
+      { title: "Melaksanakan Rapat Evaluasi Ded", minutes: 150, index: 3 },
+      { title: "Mengikuti Rapat Evaluasi Ded", minutes: 120, index: 2 },
+      { title: "Memeriksa Kesesuaian Produk Ded Berupa Gambar Rencana, Rab, Dan Spesifikasi Teknis Sebelum Disahkan Dan Diperbanyak", minutes: 180, index: 3 },
+      { title: "Mengesahkan Ded", minutes: 20, index: 3 },
+      { title: "Menyusun Berita Acara Serah Terima Pekerjaan Dari Penyedia Ke Ppk", minutes: 60, index: 2 },
+      { title: "Mengarsipkan Ded", minutes: 30, index: 1 },
+      { title: "Penilain Terhadap Kinerja Penyedia Barang/Jasa Di Spse", minutes: 20, index: 2 },
+      { title: "Menginput Dokumen Berita Acara Serah Terima Pada Spse", minutes: 15, index: 2 },
+      { title: "Menginput Bukti Pembayaran Pada Spse", minutes: 15, index: 2 },
+      { title: "Melakukan Interpolasi Harga Feasibility Study (Studi Kelayakan)", minutes: 90, index: 3 },
+      { title: "Menentukan Volume/Jumlah Jasa Yang Dibutuhkan", minutes: 60, index: 2 },
+      { title: "Menyusun Spesifikasi Teknis Yang Diinginkan Dari Barang/Jasa", minutes: 90, index: 2 },
+      { title: "Menganalisis Lingkup Kerja Jasa Serta Batas Waktu Yang Dibutuhkan", minutes: 90, index: 3 },
+      { title: "Menganalisis Kriteria 3 Penyedia Yang Kredibel, Legal Dan Memiliki Rekam Jejak Baik Untuk Menjadi Penyanding", minutes: 120, index: 3 },
+      { title: "Menginput Data Dukung Sbu Feasibility Study (Studi Kelayakan) Di Aplikasi Siusaha Badung", minutes: 30, index: 2 },
+      { title: "Menyusun Draft Kontrak Feasibility Study (Studi Kelayakan)", minutes: 180, index: 2 },
+      { title: "Menyusun Draft Ssuk Dan Sskk Feasibility Study (Studi Kelayakan)", minutes: 120, index: 2 },
+      { title: "Menyiapkan Dokumen Pendukung Feasibility Study (Studi Kelayakan) Dengan Metode Pengadaan Langsung Di E-Simpel", minutes: 120, index: 2 },
+      { title: "Menyiapkan Dokumen Pendukung Feasibility Study (Studi Kelayakan) Dengan Metode Seleksi Di E-Ukpbj", minutes: 180, index: 2 },
+      { title: "Mengupload Dokumen Pendukung Berupa Rka, Boq, Hps, Data Dukung Hps, Kak, Rup, Nota Dinas, Ssuk, Sskk Dan Draft Kontrak", minutes: 40, index: 2 },
+      { title: "Mengikuti Rapat Pra Kontrak Feasibility Study (Studi Kelayakan)", minutes: 90, index: 2 },
+      { title: "Menyiapkan Absensi Rapat Pra Kontrak Feasibility Study (Studi Kelayakan)", minutes: 10, index: 1 },
+      { title: "Meminjam Dan Menyiapkan Ruangan Rapat Pra Kontrak Feasibility Study (Studi Kelayakan)", minutes: 25, index: 1 },
+      { title: "Menyiapkan Perangkat Berupa Komputer/Laptop Dan Sound Sistem Untuk Rapat Pra Kontrak Feasibility Study (Studi Kelayakan)", minutes: 30, index: 2 },
+      { title: "Menyiapkan Konsumsi Untuk Rapat Pra Kontrak Feasibility Study (Studi Kelayakan)", minutes: 30, index: 1 },
+      { title: "Menyiapkan Print Out Draft Kontrak Feasibility Study (Studi Kelayakan)", minutes: 30, index: 1 },
+      { title: "Melaksanakan Rapat Pra Kontrak Feasibility Study (Studi Kelayakan)", minutes: 90, index: 2 },
+      { title: "Membuat Dokumen Kontrak/Surat Pesanan/Surat Perintah Kerja Untuk Feasibility Study (Studi Kelayakan)", minutes: 120, index: 2 },
+      { title: "Membuat Dokumen Spmk Untuk Feasibility Study (Studi Kelayakan)", minutes: 40, index: 2 },
+      { title: "Melakukan Serah Terima Personil Dan Lokasi Bersama Rekanan Untuk Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
+      { title: "Rapat Evaluasi Feasibility Study (Studi Kelayakan) Bersama User Dan Rekanan", minutes: 120, index: 2 },
+      { title: "Menyiapkan Absensi Rapat Evaluasi Feasibility Study (Studi Kelayakan)", minutes: 15, index: 1 },
+      { title: "Mengkordinasikan Dan Menyiapkan Ruangan Rapat Evaluasi Feasibility Study (Studi Kelayakan)", minutes: 30, index: 2 },
+      { title: "Menyiapkan Perangkat Berupa Komputer/Laptop Dan Sound Sistem Untuk Rapat Evaluasi Feasibility Study (Studi Kelayakan)", minutes: 30, index: 2 },
+      { title: "Menyiapkan Konsumsi Untuk Rapat Evaluasi Feasibility Study (Studi Kelayakan)", minutes: 40, index: 1 },
+      { title: "Melaksanakan Rapat Evaluasi Feasibility Study (Studi Kelayakan)", minutes: 40, index: 1 },
+      { title: "Menghadiri Rapat Evaluasi Feasibility Study (Studi Kelayakan)", minutes: 120, index: 2 },
+      { title: "Memeriksa Kesesuaian Produk Feasibility Study (Studi Kelayakan) Berupa Gambar Rencana, Rab, Dan Spesifikasi Teknis Sebelum Disahkan Dan Diperbanyak", minutes: 150, index: 2 },
+      { title: "Memverifikasi Produk Feasibility Study (Studi Kelayakan) Kepada Pptk Dan Ppk Untuk Disahkan", minutes: 60, index: 2 },
+      { title: "Melakukan Interpolasi Harga Pembangunan Fisik", minutes: 60, index: 3 },
+      { title: "Menentukan Volume/Jumlah Barang Dan Jasa Yang Dibutuhkan", minutes: 120, index: 3 },
+      { title: "Mengumpulkan Ketiga Rab Dari 3 Penyedia", minutes: 180, index: 2 },
+      { title: "Menginput Asb Untuk Pembangunan Gedung Kesehatan Di Aplikasi Siusaha Badung", minutes: 60, index: 2 },
+      { title: "Menginput Satuan Harga Yang Akan Ditayangkan Pada Sipd Dengan 3 Pembanding", minutes: 45, index: 2 },
+      { title: "Menginput Data Dukung Pada Rab Penyedia Yang Sudah Dibuatkan Ded Sebelumnya", minutes: 120, index: 2 },
+      { title: "Menyiapkan Dokumen Pengadaan Pembangunan Gedung Kesehatan Dengan Metode Seleksi Di E-Ukpbj", minutes: 150, index: 3 },
+      { title: "Menyusun Draft Kontrak Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
+      { title: "Menyusun Draft Ssuk Dan Sskk Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
+      { title: "Menyusun Kak Pekerjaan", minutes: 120, index: 3 },
+      { title: "Menyiapkan Gambar Rencana", minutes: 60, index: 2 },
+      { title: "Menyiapkan Spesifikasi Teknis", minutes: 240, index: 3 },
+      { title: "Mengupload Dokumen Pendukung Berupa Rka, Boq, Hps, Data Dukung Hps(Rab Ded), Kak, Rup, Nota Dinas, Gambar Rencana, Spesifikasi Teknis, Ssuk, Sskk Dan Draft Kontrak", minutes: 60, index: 2 },
+      { title: "Membuat Dokumen Spd Pbj Untuk Pembangunan Gedung Kesehatan", minutes: 60, index: 3 },
+      { title: "Menyiapkan Dokumen Pbg Untuk Pembangunan Gedung Kesehatan", minutes: 120, index: 2 },
+      { title: "Menyiapkan Dokumen Pendukung Pembangunan Gedung Kesehatan Dengan Metode Mini Kompetisi Pada E-Katalog", minutes: 150, index: 3 },
+      { title: "Membuat Dokumen Ldk (Lembar Data Kualifikasi) Untuk Mini Kompetisi Konstruksi Pembangunan Gedung Kesehatan", minutes: 60, index: 2 },
+      { title: "Membuat Dokumen Mdp (Model Dokumen Pemilihan) Untuk Mini Kompetsi Konstruksi Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
+      { title: "Membuat Draft Mini Kompetisi Konstruksi Pembangunan Gedung Kesehatan Pada E-Katalog", minutes: 90, index: 3 },
+      { title: "Memilih Kualifikasi Penyedia Berdasarkan Nilai Pagu Yang Tersedia", minutes: 15, index: 3 },
+      { title: "Menginput Detail Dan Kategori Produk Konstruksi Berdasarkan Etalase Yang Tersedia Sesuai Dengan Kebutuhan Pada Rab Perencanaan", minutes: 90, index: 2 },
+      { title: "Mengupload Dokumen Pendukung Berupa Rka, Boq, Hps,, Kak, Rup, Gambar Rencana, Spesifikasi Teknis, Ssuk, Sskk, Ldk, Mdp Dan Draft Kontrak", minutes: 60, index: 2 },
+      { title: "Menayangkan Draft Mini Kompetisi Konstruksi Pembangunan Gedung Kesehatan", minutes: 45, index: 2 },
+      { title: "Melakukan Evaluasi Penyedia Yang Menawar Mini Kompetisi Konstruksi Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
+      { title: "Melakukan Evaluasi Penyedia Berdasarkan Peringkat Harga Terendah", minutes: 30, index: 3 },
+      { title: "Melakukan Evaluasi Penyedia Berdasarkan Ldk Yang Sudah Diupload", minutes: 90, index: 3 },
+      { title: "Melakukan Klarifikasi Keabsahan Dokumen Yang Sudah Diupload Penyedia Calon Pemenang Mini Kompetisi", minutes: 90, index: 3 },
+      { title: "Menetapkan Pemenang Mini Kompetisi Konstruksi", minutes: 30, index: 3 },
+      { title: "Membuat Skema Termin Berdasarkan Jumlah Termin Yang Sudah Disyaratkan", minutes: 30, index: 3 },
+      { title: "Mengupload Ssuk Dan Sskk Sesuai Dengan Hasil Rapat Pra Kontrak", minutes: 30, index: 2 },
+      { title: "Membuat Sp (Surat Pesanan) Pada Sistem Spse", minutes: 40, index: 2 },
+      { title: "Membuat Dokumen Sppbj Setelah Munculnya Berita Acara Hasil Pemilihan Seleksi/Tender", minutes: 45, index: 3 },
+      { title: "Rapat Pra Kontrak Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
+      { title: "Menyiapkan Absensi Rapat Pra Kontrak Pembangunan Gedung Kesehatan", minutes: 15, index: 2 },
+      { title: "Meminjam Dan Menyiapkan Ruangan Rapat Pra Kontrak Pembangunan Gedung Kesehatan", minutes: 20, index: 1 },
+      { title: "Menyiapkan Perangkat Berupa Komputer/Laptop Dan Sound Sistem Untuk Rapat Pra Kontrak Pembangunan Gedung Kesehatan", minutes: 30, index: 1 },
+      { title: "Menyiapkan Konsumsi Untuk Rapat Pra Kontrak Pembangunan Gedung Kesehatan", minutes: 25, index: 1 },
+      { title: "Menyiapkan Print Out Draft Kontrak Pembangunan Gedung Kesehatan", minutes: 30, index: 1 },
+      { title: "Melaksanakan Rapat Pra Kontrak Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
+      { title: "Mengikuti Rapat Pra Kontrak Pembangunan Gedung Kesehatan", minutes: 120, index: 2 },
+      { title: "Membuat Dokumen Kontrak/Surat Pesanan/Surat Perintah Kerja Untuk Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
+      { title: "Membuat Dokumen Spmk Untuk Pembangunan Gedung Kesehatan", minutes: 40, index: 2 },
+      { title: "Meminjam Dan Menyiapkan Ruangan Rapat Evaluasi Ded", minutes: 30, index: 1 },
+      { title: "Membuat Notulen Rapat Evaluasi", minutes: 60, index: 1 },
+      { title: "Monev Ke Lokasi Pekerjaan", minutes: 150, index: 4 },
+      { title: "Menyusun Laporan Pendampingan Pelaksaanaan Uji Material/Uji Fungsi", minutes: 90, index: 3 },
+      { title: "Menyusun Berita Acara Pemeriksaan Pekerjaan", minutes: 60, index: 2 },
+      { title: "Menyusun Berita Acara Serah Terima Pekerjaan", minutes: 40, index: 3 },
+      { title: "Menyusun Draft Kontrak Pengawasan", minutes: 180, index: 2 },
+      { title: "Menyusun Draft Ssuk Dan Sskk Pengawasan", minutes: 90, index: 2 },
+      { title: "Menyusun Boq Pengawasan", minutes: 120, index: 3 },
+      { title: "Menyusun Hps Pengawasan", minutes: 180, index: 3 },
+      { title: "Menyusun Datang Dukung Hps Pengawasan", minutes: 120, index: 2 },
+      { title: "Menyusun Kak Pengawasan", minutes: 240, index: 3 },
+      { title: "Membuat Nota Dinas Pengawasan", minutes: 30, index: 2 },
+      { title: "Menyiapkan Absensi Rapat Pra Kontrak Pengawasan", minutes: 15, index: 1 },
+      { title: "Menyiapkan Perangkat Berupa Komputer/Laptop Dan Sound Sistem Untuk Rapat Pra Kontrak Pengawasan", minutes: 25, index: 2 },
+      { title: "Menyiapkan Konsumsi Untuk Rapat Pra Kontrak Pengawasan", minutes: 30, index: 2 },
+      { title: "Menyiapkan Print Out Draft Kontrak Pengawasan", minutes: 20, index: 1 },
+      { title: "Melaksanakan Rapat Pra Kontrak Pengawasan", minutes: 90, index: 2 },
+      { title: "Menyusun Berita Acara Pra Kontrak Pengawasan", minutes: 40, index: 2 },
+      { title: "Membuat Dokumen Kontrak/Surat Pesanan/Surat Perintah Kerja Untuk Pengawasan", minutes: 90, index: 3 },
+      { title: "Membuat Dokumen Spmk Untuk Pengawasan", minutes: 30, index: 2 }
     ];
 
     // =========================================================================
@@ -483,6 +795,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
 
     let employees = [];
     let reports = [];
+    let currentGroupedHistory = [];
 
     // Helper normalisasi teks aktivitas untuk pengecekan duplikasi akurat
     function normalizeTitle(str) {
@@ -499,10 +812,13 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       );
     }
 
-    // Render seluruh 19 daftar aktivitas harian langsung terlihat di menu Input Kinerja Harian
+    // Render seluruh daftar aktivitas harian langsung terlihat di menu Input Kinerja Harian
     function renderAllPresetList() {
       const container = document.getElementById("allPresetActivitiesContainer");
       if (!container) return;
+
+      document.getElementById("totalMasterBadge").textContent = PRESET_ACTIVITIES.length;
+      document.getElementById("presetCountBtnLabel").textContent = PRESET_ACTIVITIES.length;
 
       const keyword = (document.getElementById("presetSearchInput")?.value || "").toLowerCase().trim();
       const today = getTodayISO();
@@ -873,7 +1189,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
     }
 
     // =========================================================================
-    // DASHBOARD INPUT MASSAL KE SEMUA PEGAWAI (ANTI-DUPLIKASI)
+    // DASHBOARD INPUT, EDIT & HAPUS KINERJA HARIAN MASSAL
     // =========================================================================
     function renderBulkRecipients() {
       const container = document.getElementById("bulkRecipientList");
@@ -1017,7 +1333,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       }
     }
 
-    // Masukkan Semua 19 Template CANDI BADUNG Sekaligus (HANYA YANG BELUM TERISI)
+    // Masukkan Semua Template CANDI BADUNG Sekaligus (HANYA YANG BELUM TERISI)
     async function insertAllPresetActivities() {
       const selectedIds = Array.from(document.querySelectorAll(".bulk-emp-checkbox:checked")).map(cb => cb.value);
       if (selectedIds.length === 0) {
@@ -1074,7 +1390,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
         });
 
         if (allBatch.length === 0) {
-          showToast("Semua 19 aktivitas sudah lengkap & sinkron pada seluruh pegawai terpilih!");
+          showToast(`Semua ${PRESET_ACTIVITIES.length} aktivitas sudah lengkap & sinkron pada seluruh pegawai terpilih!`);
           return;
         }
 
@@ -1086,42 +1402,200 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
         showToast("Gagal import massal: " + err.message);
       } finally {
         btn.disabled = false;
-        btn.textContent = "📥 Masukkan Semua 19 Aktivitas";
+        btn.innerHTML = `📥 Masukkan Semua (<span id="presetCountBtnLabel">${PRESET_ACTIVITIES.length}</span>) Aktivitas`;
       }
     }
 
+    // Render Daftar Kinerja Harian Tercatat dengan Tombol Edit & Hapus
     function renderBulkRecentHistory() {
       const container = document.getElementById("bulkRecentHistory");
-      const today = getTodayISO();
-      const todayReports = reports.filter(r => r.report_date === today);
+      const keyword = (document.getElementById("manageHistorySearch")?.value || "").toLowerCase().trim();
 
       const grouped = [];
       const seen = new Set();
-      for (let i = todayReports.length - 1; i >= 0; i--) {
-        const r = todayReports[i];
-        const key = `${r.title}|${r.duration_minutes}|${r.index_val}|${r.eselon || ''}`;
+
+      // Urutkan dari yang terbaru berdasarkan tanggal lalu urutan input
+      const sortedReports = [...reports].sort((a, b) => (b.report_date || "").localeCompare(a.report_date || ""));
+
+      for (let i = sortedReports.length - 1; i >= 0; i--) {
+        const r = sortedReports[i];
+        const eselonStr = r.eselon || "Non-Eselon / JF / Pelaksana";
+        const key = `${r.report_date}|${r.title}|${r.duration_minutes}|${r.index_val}|${eselonStr}`;
         if (!seen.has(key)) {
           seen.add(key);
-          const count = todayReports.filter(item => `${item.title}|${item.duration_minutes}|${item.index_val}|${item.eselon || ''}` === key).length;
-          grouped.push({ ...r, count });
+          const matchingItems = sortedReports.filter(item =>
+            `${item.report_date}|${item.title}|${item.duration_minutes}|${item.index_val}|${item.eselon || "Non-Eselon / JF / Pelaksana"}` === key
+          );
+          grouped.push({
+            ...r,
+            eselon: eselonStr,
+            count: matchingItems.length,
+            ids: matchingItems.map(m => m.id)
+          });
         }
-        if (grouped.length >= 6) break;
       }
 
-      if (grouped.length === 0) {
-        container.innerHTML = `<p class="text-slate-400">Belum ada aktivitas tercatat hari ini (${today}).</p>`;
+      currentGroupedHistory = grouped.filter(item =>
+        item.title.toLowerCase().includes(keyword) ||
+        (item.report_date && item.report_date.includes(keyword)) ||
+        (item.eselon && item.eselon.toLowerCase().includes(keyword))
+      );
+
+      if (currentGroupedHistory.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 text-center py-4">Belum ada aktivitas kinerja harian yang tercatat.</p>`;
         return;
       }
 
-      container.innerHTML = grouped.map(item => `
-        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-          <p class="font-semibold text-slate-800 line-clamp-2">${item.title}</p>
-          <div class="flex flex-wrap items-center justify-between gap-1 mt-1.5 text-[11px] text-slate-500">
-            <span>${item.eselon || 'Non-Eselon'} • ${item.duration_minutes} × ${formatNum(item.index_val)} = <strong class="text-teal-700">${formatNum(item.duration_minutes * item.index_val)} Poin</strong></span>
+      container.innerHTML = currentGroupedHistory.map((item, idx) => `
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 transition">
+          <div class="flex items-start justify-between gap-2">
+            <p class="font-semibold text-slate-800 leading-snug">${item.title}</p>
+            <div class="flex items-center gap-1 shrink-0">
+              <button type="button" onclick="openEditBulkReportModal(${idx})" title="Edit Kinerja Harian"
+                class="px-2 py-1 rounded-lg bg-white border border-slate-200 hover:border-teal-400 text-teal-700 font-semibold text-[11px] transition">
+                ✏️ Edit
+              </button>
+              <button type="button" onclick="deleteBulkReportGroup(${idx})" title="Hapus Kinerja Harian"
+                class="px-2 py-1 rounded-lg bg-white border border-slate-200 hover:border-rose-400 text-rose-600 font-semibold text-[11px] transition">
+                🗑️ Hapus
+              </button>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-1 mt-2 text-[11px] text-slate-500">
+            <span>📅 ${item.report_date} • ${item.eselon} • ${item.duration_minutes} × ${formatNum(item.index_val)} = <strong class="text-teal-700">${formatNum(item.duration_minutes * item.index_val)} Poin</strong></span>
             <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">${item.count} Pegawai</span>
           </div>
         </div>
       `).join("");
+    }
+
+    // Modal Edit Kinerja Harian Massal
+    function openEditBulkReportModal(groupIdx) {
+      const item = currentGroupedHistory[groupIdx];
+      if (!item) return;
+
+      document.getElementById("editBulkOrigTitle").value = item.title;
+      document.getElementById("editBulkOrigDate").value = item.report_date;
+      document.getElementById("editBulkOrigMinutes").value = item.duration_minutes;
+      document.getElementById("editBulkOrigIndex").value = item.index_val;
+      document.getElementById("editBulkOrigEselon").value = item.eselon || "Non-Eselon / JF / Pelaksana";
+
+      document.getElementById("editBulkEselon").value = item.eselon || "Non-Eselon / JF / Pelaksana";
+      document.getElementById("editBulkTitle").value = item.title;
+      document.getElementById("editBulkMinutes").value = item.duration_minutes;
+      document.getElementById("editBulkIndex").value = String(Number(item.index_val));
+      updateEditBulkPreview();
+
+      document.getElementById("editBulkReportModal").classList.remove("hidden");
+      document.getElementById("editBulkReportModal").classList.add("flex");
+    }
+
+    function closeEditBulkReportModal() {
+      document.getElementById("editBulkReportModal").classList.add("hidden");
+      document.getElementById("editBulkReportModal").classList.remove("flex");
+    }
+
+    function updateEditBulkPreview() {
+      const mins = parseInt(document.getElementById("editBulkMinutes").value, 10) || 0;
+      const idx = parseFloat(document.getElementById("editBulkIndex").value) || 1;
+      document.getElementById("editBulkPoints").value = `${mins} × ${formatNum(idx)} = ${formatNum(mins * idx)}`;
+    }
+
+    async function saveEditedBulkReport(e) {
+      e.preventDefault();
+
+      const origTitle = document.getElementById("editBulkOrigTitle").value;
+      const origDate = document.getElementById("editBulkOrigDate").value;
+      const origMinutes = Number(document.getElementById("editBulkOrigMinutes").value);
+      const origIndex = Number(document.getElementById("editBulkOrigIndex").value);
+      const origEselon = document.getElementById("editBulkOrigEselon").value;
+
+      const newEselon = document.getElementById("editBulkEselon").value;
+      const newTitle = document.getElementById("editBulkTitle").value.trim();
+      const newMinutes = parseInt(document.getElementById("editBulkMinutes").value, 10) || 0;
+      const newIndex = parseFloat(document.getElementById("editBulkIndex").value) || 1;
+      const newPoints = Number((newMinutes * newIndex).toFixed(2));
+
+      const targetItems = reports.filter(r =>
+        r.report_date === origDate &&
+        r.title === origTitle &&
+        Number(r.duration_minutes) === origMinutes &&
+        Number(r.index_val) === origIndex &&
+        (r.eselon || "Non-Eselon / JF / Pelaksana") === origEselon
+      );
+
+      if (targetItems.length === 0) {
+        closeEditBulkReportModal();
+        return;
+      }
+
+      const targetIds = targetItems.map(t => t.id);
+
+      if (isSupabaseConnected && supabaseClient) {
+        const updatePayload = {
+          title: newTitle,
+          duration_minutes: newMinutes,
+          index_val: newIndex,
+          points: newPoints,
+          eselon: newEselon,
+          output: `1 Kegiatan (${newEselon})`
+        };
+        const { error } = await supabaseClient.from("reports").update(updatePayload).in("id", targetIds);
+        if (error) {
+          const { eselon, ...fallbackPayload } = updatePayload;
+          const { error: retryErr } = await supabaseClient.from("reports").update(fallbackPayload).in("id", targetIds);
+          if (retryErr) {
+            showToast("Gagal memperbarui data: " + retryErr.message);
+            return;
+          }
+        }
+      }
+
+      reports = reports.map(r => {
+        if (targetIds.includes(r.id)) {
+          return {
+            ...r,
+            title: newTitle,
+            duration_minutes: newMinutes,
+            index_val: newIndex,
+            points: newPoints,
+            eselon: newEselon,
+            output: `1 Kegiatan (${newEselon})`
+          };
+        }
+        return r;
+      });
+
+      saveLocalData();
+      closeEditBulkReportModal();
+      renderAllPresetList();
+      renderBulkRecentHistory();
+      showToast(`Berhasil memperbarui kinerja untuk ${targetIds.length} pegawai!`);
+    }
+
+    // Hapus Kinerja Harian dari Dashboard Input Massal
+    async function deleteBulkReportGroup(groupIdx) {
+      const item = currentGroupedHistory[groupIdx];
+      if (!item) return;
+
+      const isConfirmed = confirm(`Hapus aktivitas "${item.title}" (${item.report_date}) dari ${item.count} pegawai?`);
+      if (!isConfirmed) return;
+
+      const targetIds = item.ids;
+
+      if (isSupabaseConnected && supabaseClient) {
+        const { error } = await supabaseClient.from("reports").delete().in("id", targetIds);
+        if (error) {
+          showToast("Gagal menghapus dari database: " + error.message);
+          return;
+        }
+      }
+
+      reports = reports.filter(r => !targetIds.includes(r.id));
+      saveLocalData();
+      renderAllPresetList();
+      renderBulkRecentHistory();
+      showToast(`Aktivitas berhasil dihapus dari ${targetIds.length} pegawai.`);
     }
 
     // =========================================================================
