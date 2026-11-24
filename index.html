@@ -642,10 +642,14 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
           <p class="text-sm font-medium text-slate-800 mb-1">${idx + 1}. ${item.title}</p>
           <p class="text-xs text-slate-500 mb-3">Output: <span class="font-medium text-slate-700">${item.output}</span></p>
 
-          <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <div class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <button onclick="copyActivityTextOnly('${item.id}')"
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-50 hover:bg-teal-100 text-teal-700 transition">
+              📝 Salin Teks
+            </button>
             <button onclick="copySingleActivity('${item.id}')"
-              class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-teal-50 text-slate-700 hover:text-teal-700 transition">
-              📋 Salin
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+              📋 Salin Detail
             </button>
             <button onclick="deleteActivity('${item.id}')"
               class="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 transition">
@@ -656,7 +660,16 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       `).join("");
     }
 
-    // Salin Satu Kegiatan
+    // Salin Hanya Kata-Kata Uraian Kegiatan
+    function copyActivityTextOnly(repId) {
+      const item = reports.find(r => r.id === repId);
+      if (!item) return;
+
+      navigator.clipboard.writeText(item.title);
+      showToast("Teks uraian kegiatan berhasil disalin!");
+    }
+
+    // Salin Satu Kegiatan Lengkap
     function copySingleActivity(repId) {
       const item = reports.find(r => r.id === repId);
       const emp = employees.find(e => e.id === selectedEmployeeId);
@@ -672,7 +685,7 @@ Index: ${Number(item.index_val).toFixed(2)}x | Poin: ${Number(item.points).toFix
 Status: ${item.status}`;
 
       navigator.clipboard.writeText(text);
-      showToast("Item kegiatan berhasil disalin!");
+      showToast("Detail kegiatan berhasil disalin!");
     }
 
     // Salin Rekap Keseluruhan Tanggal Terpilih
