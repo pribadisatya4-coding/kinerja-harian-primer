@@ -104,22 +104,15 @@
                 </select>
               </div>
 
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Laporan</label>
-                  <input type="date" id="bulkDate" onchange="renderBulkRecentHistory()" required
-                    class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none" />
-                </div>
-                <div>
-                  <label class="block text-xs font-semibold text-slate-700 mb-1">Eselon</label>
-                  <select id="bulkEselon" required
-                    class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none">
-                    <option value="Non-Eselon / JF / Pelaksana">Non-Eselon / JF / Pelaksana</option>
-                    <option value="Eselon IV">Eselon IV</option>
-                    <option value="Eselon III">Eselon III</option>
-                    <option value="Eselon II">Eselon II</option>
-                  </select>
-                </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Eselon</label>
+                <select id="bulkEselon" required
+                  class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+                  <option value="Non-Eselon / JF / Pelaksana">Non-Eselon / JF / Pelaksana</option>
+                  <option value="Eselon IV">Eselon IV</option>
+                  <option value="Eselon III">Eselon III</option>
+                  <option value="Eselon II">Eselon II</option>
+                </select>
               </div>
 
               <div>
@@ -180,7 +173,7 @@
           <div class="bg-amber-50/80 rounded-2xl border border-amber-200 p-5 shadow-sm">
             <h3 class="text-sm font-bold text-amber-900 mb-1">Import Paket Master Aktivitas (19 Item)</h3>
             <p class="text-xs text-amber-800/90 mb-3">
-              Masukkan seluruh 19 daftar aktivitas CANDI BADUNG sekaligus ke pegawai yang dicentang pada tanggal terpilih.
+              Masukkan seluruh 19 daftar aktivitas CANDI BADUNG sekaligus ke pegawai yang dicentang untuk hari ini.
             </p>
             <button type="button" id="bulkInsertAllPresetsBtn" onclick="insertAllPresetActivities()"
               class="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition">
@@ -199,9 +192,9 @@
             <div id="bulkRecipientList" class="max-h-56 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl px-3"></div>
           </div>
 
-          <!-- Riwayat Input Massal Tanggal Terpilih -->
+          <!-- Riwayat Input Massal Hari Ini -->
           <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-            <h3 class="text-sm font-bold text-slate-800 mb-3">Riwayat Input Tanggal Terpilih</h3>
+            <h3 class="text-sm font-bold text-slate-800 mb-3">Riwayat Input Hari Ini</h3>
             <div id="bulkRecentHistory" class="space-y-2.5 text-xs"></div>
           </div>
         </div>
@@ -502,7 +495,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       selectedEmployeeId = null;
       hideAllViews();
       document.getElementById("bulkInputView").classList.remove("hidden");
-      document.getElementById("bulkDate").value = getTodayISO();
       renderBulkRecipients();
       updateBulkCalculation();
       renderBulkRecentHistory();
@@ -703,7 +695,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
         return;
       }
 
-      const reportDate = document.getElementById("bulkDate").value || getTodayISO();
+      const reportDate = getTodayISO();
       const eselon = document.getElementById("bulkEselon").value;
       const title = document.getElementById("bulkActivityName").value.trim();
       const durationMinutes = parseInt(document.getElementById("bulkMinutes").value, 10) || 0;
@@ -766,7 +758,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
         return;
       }
 
-      const reportDate = document.getElementById("bulkDate").value || getTodayISO();
+      const reportDate = getTodayISO();
       const eselon = document.getElementById("bulkEselon").value;
       const btn = document.getElementById("bulkInsertAllPresetsBtn");
 
@@ -819,7 +811,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
 
     function renderBulkRecentHistory() {
       const container = document.getElementById("bulkRecentHistory");
-      const today = document.getElementById("bulkDate").value || getTodayISO();
+      const today = getTodayISO();
       const todayReports = reports.filter(r => r.report_date === today);
 
       const grouped = [];
@@ -836,7 +828,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       }
 
       if (grouped.length === 0) {
-        container.innerHTML = `<p class="text-slate-400">Belum ada aktivitas tercatat pada tanggal ${today}.</p>`;
+        container.innerHTML = `<p class="text-slate-400">Belum ada aktivitas tercatat hari ini (${today}).</p>`;
         return;
       }
 
