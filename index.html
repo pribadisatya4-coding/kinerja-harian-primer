@@ -26,15 +26,19 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <button onclick="openDbModal()" id="dbStatusBtn"
-          class="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
-          <span id="dbStatusDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
-          <span id="dbStatusText">Mode Lokal</span>
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="showBulkInputDashboard()" id="navBulkBtn"
+          class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition">
+          ⚡ Input Kinerja Massal
         </button>
         <button onclick="openAddEmployeeModal()"
           class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition">
           + Tambah Pegawai
+        </button>
+        <button onclick="openDbModal()" id="dbStatusBtn"
+          class="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+          <span id="dbStatusDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
+          <span id="dbStatusText">Mode Lokal</span>
         </button>
       </div>
     </div>
@@ -49,7 +53,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 class="text-base sm:text-lg font-bold text-slate-800">Daftar Pegawai</h2>
-            <p class="text-xs sm:text-sm text-slate-500">Klik nama pegawai untuk masuk ke halaman pelaporan kinerja harian.</p>
+            <p class="text-xs sm:text-sm text-slate-500">Klik nama pegawai untuk melihat daftar aktivitas & menyalin laporan kinerja harian.</p>
           </div>
           <div class="flex flex-col sm:flex-row gap-2.5">
             <input type="text" id="searchInput" oninput="renderEmployees()" placeholder="Cari nama atau NIP..."
@@ -65,7 +69,122 @@
       <div id="employeeGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
 
-    <!-- VIEW 2: DETAIL LAPORAN PEGAWAI -->
+    <!-- VIEW 2: DASHBOARD KHUSUS INPUT KINERJA KE SEMUA PEGAWAI SEKALIGUS -->
+    <section id="bulkInputView" class="hidden">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <button onclick="showEmployeeList()"
+          class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 shadow-sm transition">
+          ← Kembali ke Daftar Pegawai
+        </button>
+        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+          Mode Input Serentak ke Semua Pegawai
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Form Input Massal -->
+        <div class="lg:col-span-7">
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div class="mb-5 pb-4 border-b border-slate-100">
+              <h2 class="text-lg font-bold text-slate-900">Dashboard Input Kinerja Harian (Semua Nama)</h2>
+              <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
+                Setiap aktivitas yang ditambahkan di sini akan otomatis masuk ke daftar kinerja <strong>seluruh pegawai</strong> secara bersamaan.
+              </p>
+            </div>
+
+            <form id="bulkActivityForm" onsubmit="addBulkActivity(event)" class="space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Laporan</label>
+                  <input type="date" id="bulkDate" required
+                    class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Eselon</label>
+                  <select id="bulkEselon" required
+                    class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+                    <option value="Non-Eselon / JF / Pelaksana">Non-Eselon / JF / Pelaksana</option>
+                    <option value="Eselon IV">Eselon IV</option>
+                    <option value="Eselon III">Eselon III</option>
+                    <option value="Eselon II">Eselon II</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Aktivitas</label>
+                <textarea id="bulkActivityName" rows="3" required
+                  placeholder="Contoh: Rapat koordinasi evaluasi pelayanan perizinan fasilitas kesehatan..."
+                  class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"></textarea>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Waktu (Menit)</label>
+                  <input type="number" id="bulkMinutes" min="1" max="1440" value="30" oninput="updateBulkCalculation()" required
+                    class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none" />
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Indeks</label>
+                  <select id="bulkIndex" onchange="updateBulkCalculation()" required
+                    class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+                    <option value="1">1</option>
+                    <option value="1.25">1.25</option>
+                    <option value="1.5">1.5</option>
+                    <option value="1.75">1.75</option>
+                    <option value="2">2</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Point (Otomatis)</label>
+                  <input type="text" id="bulkPointDisplay" readonly value="30"
+                    class="w-full px-3.5 py-2.5 text-sm font-bold text-teal-700 bg-teal-50/70 border border-teal-200 rounded-xl outline-none" />
+                </div>
+              </div>
+
+              <!-- Ringkasan Rumus -->
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span class="text-slate-600">
+                  Rumus Poin: <strong id="bulkFormulaPreview" class="text-slate-900">30 × 1 = 30 Poin</strong>
+                </span>
+                <span class="text-teal-700 font-semibold">
+                  Target: <span id="bulkTargetCount">0</span> Pegawai
+                </span>
+              </div>
+
+              <button type="submit" id="bulkSubmitBtn"
+                class="w-full py-3 px-4 rounded-xl text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition">
+                + Tambahkan ke Semua Pegawai Sekarang
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Panel Daftar Pegawai Penerima & Riwayat Input Massal -->
+        <div class="lg:col-span-5 space-y-5">
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-bold text-slate-800">Daftar Pegawai Penerima (<span id="recipientCountBadge">0</span>)</h3>
+              <button type="button" onclick="toggleSelectAllRecipients()" class="text-xs font-semibold text-teal-600 hover:underline">
+                Pilih / Batal Semua
+              </button>
+            </div>
+            <p class="text-xs text-slate-500 mb-3">Secara default semua pegawai tercentang otomatis.</p>
+            <div id="bulkRecipientList" class="max-h-64 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl px-3"></div>
+          </div>
+
+          <!-- Riwayat Input Massal Hari Ini -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <h3 class="text-sm font-bold text-slate-800 mb-3">Riwayat Input Massal Terakhir</h3>
+            <div id="bulkRecentHistory" class="space-y-2.5 text-xs"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: DETAIL LAPORAN PEGAWAI (TANPA MENU INPUT AKTIVITAS HARIAN) -->
     <section id="reportDetailView" class="hidden">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <button onclick="showEmployeeList()"
@@ -105,7 +224,7 @@
           </div>
           <div class="bg-teal-50/70 border border-teal-200/80 rounded-xl p-3.5">
             <p class="text-xs text-teal-700 font-medium">Akumulasi Waktu Kerja</p>
-            <p id="totalDurationText" class="text-xl font-bold text-teal-800 mt-0.5">0 Menit (0 Jam 0 Menit)</p>
+            <p id="totalDurationText" class="text-xl font-bold text-teal-800 mt-0.5">0 Menit</p>
           </div>
           <div class="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5">
             <p class="text-xs text-amber-700 font-medium">Akumulasi Poin Kinerja</p>
@@ -114,89 +233,15 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- Form Tambah Kegiatan -->
-        <div class="lg:col-span-5">
-          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm sticky top-24">
-            <h3 class="text-base font-bold text-slate-800 mb-4">Input Aktivitas Harian</h3>
-            <form id="activityForm" onsubmit="addActivity(event)" class="space-y-3.5">
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs font-semibold text-slate-600 mb-1">Jam Mulai</label>
-                  <input type="time" id="startTime" value="08:00" oninput="updateLiveCalculation()" required
-                    class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none" />
-                </div>
-                <div>
-                  <label class="block text-xs font-semibold text-slate-600 mb-1">Jam Selesai</label>
-                  <input type="time" id="endTime" value="08:10" oninput="updateLiveCalculation()" required
-                    class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none" />
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Uraian Tugas / Kegiatan</label>
-                <textarea id="taskTitle" rows="3" placeholder="Contoh: Verifikasi berkas permohonan izin operasional klinik..." required
-                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"></textarea>
-              </div>
-
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs font-semibold text-slate-600 mb-1">Output / Hasil</label>
-                  <input type="text" id="taskOutput" placeholder="Contoh: 5 Dokumen / 1 Laporan" required
-                    class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none" />
-                </div>
-                <div>
-                  <label class="block text-xs font-semibold text-slate-600 mb-1">Index / Bobot Poin</label>
-                  <select id="taskIndex" onchange="updateLiveCalculation()"
-                    class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none">
-                    <option value="1">1 (Rutin / Administrasi)</option>
-                    <option value="1.25">1.25 (Pelayanan / Verifikasi)</option>
-                    <option value="1.5">1.5 (Koordinasi / Lapangan)</option>
-                    <option value="1.75">1.75 (Analisis / Evaluasi)</option>
-                    <option value="2">2 (Prioritas / Khusus)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Status Penyelesaian</label>
-                <select id="taskStatus"
-                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none">
-                  <option value="Selesai">Selesai</option>
-                  <option value="Proses">Dalam Proses</option>
-                </select>
-              </div>
-
-              <!-- Preview Perhitungan Otomatis (Format: Waktu x Indeks = Poin) -->
-              <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-                <div>
-                  <span class="text-slate-500">Durasi:</span>
-                  <strong id="previewDuration" class="text-slate-800 ml-1">10 Menit</strong>
-                </div>
-                <div>
-                  <span class="text-slate-500">Hitungan Poin:</span>
-                  <strong id="previewPoints" class="text-teal-700 ml-1">10 × 1 = 10 Poin</strong>
-                </div>
-              </div>
-
-              <button type="submit"
-                class="w-full py-2.5 px-4 rounded-xl text-sm font-semibold bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition">
-                + Simpan Laporan Kegiatan
-              </button>
-            </form>
-          </div>
+      <!-- Daftar Kegiatan Tanggal Terpilih (Full Width) -->
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-base font-bold text-slate-800">Daftar Aktivitas Tercatat</h3>
+          <button onclick="copyAllRecap()" class="text-xs font-semibold text-teal-700 hover:underline">
+            Salin Semua
+          </button>
         </div>
-
-        <!-- Daftar Kegiatan Tanggal Terpilih -->
-        <div class="lg:col-span-7">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-base font-bold text-slate-800">Daftar Aktivitas Tercatat</h3>
-            <button onclick="copyAllRecap()" class="text-xs font-semibold text-teal-700 hover:underline">
-              Salin Semua
-            </button>
-          </div>
-          <div id="activityList" class="space-y-3"></div>
-        </div>
+        <div id="activityList" class="space-y-3"></div>
       </div>
     </section>
   </main>
@@ -298,11 +343,16 @@ CREATE TABLE IF NOT EXISTS reports (
   duration_minutes INTEGER NOT NULL,
   title TEXT NOT NULL,
   output TEXT NOT NULL,
+  eselon TEXT DEFAULT 'Non-Eselon / JF / Pelaksana',
   index_val NUMERIC(4,2) DEFAULT 1.0,
   points NUMERIC(8,2) DEFAULT 0,
   status TEXT DEFAULT 'Selesai',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Tambah kolom eselon jika tabel sudah ada sebelumnya
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS eselon TEXT DEFAULT 'Non-Eselon / JF / Pelaksana';
+ALTER TABLE reports ALTER COLUMN points TYPE NUMERIC(8,2);
 
 -- Aktifkan RLS & Kebijakan Akses Publik
 ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
@@ -362,6 +412,30 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       setTimeout(() => toast.classList.add("opacity-0"), 2600);
     }
 
+    // Navigasi View
+    function hideAllViews() {
+      document.getElementById("employeeListView").classList.add("hidden");
+      document.getElementById("bulkInputView").classList.add("hidden");
+      document.getElementById("reportDetailView").classList.add("hidden");
+    }
+
+    function showEmployeeList() {
+      selectedEmployeeId = null;
+      hideAllViews();
+      document.getElementById("employeeListView").classList.remove("hidden");
+      renderEmployees();
+    }
+
+    function showBulkInputDashboard() {
+      selectedEmployeeId = null;
+      hideAllViews();
+      document.getElementById("bulkInputView").classList.remove("hidden");
+      document.getElementById("bulkDate").value = getTodayISO();
+      renderBulkRecipients();
+      updateBulkCalculation();
+      renderBulkRecentHistory();
+    }
+
     // Inisialisasi Koneksi Supabase
     async function initDatabase() {
       const savedUrl = localStorage.getItem("ekinerja_sb_url") || DEFAULT_SUPABASE_URL;
@@ -376,7 +450,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
           const { data: empData, error: empErr } = await supabaseClient.from("employees").select("*").order("created_at", { ascending: true });
           if (empErr) throw empErr;
 
-          const { data: repData, error: repErr } = await supabaseClient.from("reports").select("*").order("start_time", { ascending: true });
+          const { data: repData, error: repErr } = await supabaseClient.from("reports").select("*").order("created_at", { ascending: true });
           if (repErr) throw repErr;
 
           isSupabaseConnected = true;
@@ -477,14 +551,177 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
             </div>
             <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span class="text-slate-400">${emp.division}</span>
-              <span class="font-semibold text-teal-600">${hasReported ? `${formatNum(totalPoints)} Poin Hari Ini →` : 'Input Laporan →'}</span>
+              <span class="font-semibold text-teal-600">${hasReported ? `${formatNum(totalPoints)} Poin Hari Ini →` : 'Lihat Laporan →'}</span>
             </div>
           </div>
         `;
       }).join("");
     }
 
-    // Navigasi ke Halaman Detail Laporan Pegawai
+    // =========================================================================
+    // DASHBOARD INPUT MASSAL KE SEMUA PEGAWAI
+    // =========================================================================
+    function renderBulkRecipients() {
+      const container = document.getElementById("bulkRecipientList");
+      container.innerHTML = employees.map(emp => `
+        <label class="flex items-center justify-between py-2.5 cursor-pointer hover:bg-slate-50">
+          <div class="flex items-center gap-2.5">
+            <input type="checkbox" class="bulk-emp-checkbox rounded text-teal-600 focus:ring-teal-500" value="${emp.id}" checked onchange="updateSelectedRecipientCount()" />
+            <div>
+              <p class="text-xs font-semibold text-slate-800">${emp.name}</p>
+              <p class="text-[11px] text-slate-400">${emp.division}</p>
+            </div>
+          </div>
+          <span class="text-[11px] text-slate-400">${emp.nip}</span>
+        </label>
+      `).join("");
+      updateSelectedRecipientCount();
+    }
+
+    function toggleSelectAllRecipients() {
+      const boxes = document.querySelectorAll(".bulk-emp-checkbox");
+      const allChecked = Array.from(boxes).every(cb => cb.checked);
+      boxes.forEach(cb => cb.checked = !allChecked);
+      updateSelectedRecipientCount();
+    }
+
+    function updateSelectedRecipientCount() {
+      const checkedCount = document.querySelectorAll(".bulk-emp-checkbox:checked").length;
+      document.getElementById("recipientCountBadge").textContent = checkedCount;
+      document.getElementById("bulkTargetCount").textContent = checkedCount;
+    }
+
+    function updateBulkCalculation() {
+      const mins = parseInt(document.getElementById("bulkMinutes").value, 10) || 0;
+      const idx = parseFloat(document.getElementById("bulkIndex").value) || 1;
+      const pts = mins * idx;
+
+      document.getElementById("bulkPointDisplay").value = formatNum(pts);
+      document.getElementById("bulkFormulaPreview").textContent = `${mins} × ${formatNum(idx)} = ${formatNum(pts)} Poin`;
+    }
+
+    function addMinutesToTime(timeStr, minsToAdd) {
+      const [h, m] = timeStr.split(":").map(Number);
+      const total = h * 60 + m + minsToAdd;
+      const endH = Math.floor((total / 60) % 24);
+      const endM = total % 60;
+      return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+    }
+
+    async function addBulkActivity(e) {
+      e.preventDefault();
+      const selectedIds = Array.from(document.querySelectorAll(".bulk-emp-checkbox:checked")).map(cb => cb.value);
+
+      if (selectedIds.length === 0) {
+        showToast("Pilih minimal 1 pegawai penerima!");
+        return;
+      }
+
+      const reportDate = document.getElementById("bulkDate").value || getTodayISO();
+      const eselon = document.getElementById("bulkEselon").value;
+      const title = document.getElementById("bulkActivityName").value.trim();
+      const durationMinutes = parseInt(document.getElementById("bulkMinutes").value, 10) || 0;
+      const indexVal = parseFloat(document.getElementById("bulkIndex").value) || 1;
+
+      if (durationMinutes <= 0) {
+        showToast("Waktu (Menit) harus lebih dari 0!");
+        return;
+      }
+
+      const points = Number((durationMinutes * indexVal).toFixed(2));
+      const baseTime = Date.now();
+
+      const newBatchReports = selectedIds.map((empId, i) => {
+        // Hitung jam mulai berurutan berdasarkan kegiatan terakhir pegawai pada tanggal tsb
+        const existingEmpReports = reports.filter(r => r.employee_id === empId && r.report_date === reportDate);
+        const startTime = existingEmpReports.length > 0
+          ? existingEmpReports[existingEmpReports.length - 1].end_time
+          : "08:00";
+        const endTime = addMinutesToTime(startTime, durationMinutes);
+
+        return {
+          id: `rep-${baseTime}-${i}`,
+          employee_id: empId,
+          report_date: reportDate,
+          start_time: startTime,
+          end_time: endTime,
+          duration_minutes: durationMinutes,
+          title,
+          output: `1 Kegiatan (${eselon})`,
+          eselon,
+          index_val: indexVal,
+          points,
+          status: "Selesai"
+        };
+      });
+
+      const btn = document.getElementById("bulkSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "Menyimpan ke semua pegawai...";
+
+      try {
+        if (isSupabaseConnected && supabaseClient) {
+          const { error } = await supabaseClient.from("reports").insert(newBatchReports);
+          if (error) {
+            // Fallback jika kolom 'eselon' belum ditambahkan di tabel Supabase lama
+            const fallbackBatch = newBatchReports.map(({ eselon, ...rest }) => rest);
+            const { error: retryErr } = await supabaseClient.from("reports").insert(fallbackBatch);
+            if (retryErr) throw retryErr;
+          }
+        }
+
+        reports.push(...newBatchReports);
+        saveLocalData();
+
+        document.getElementById("bulkActivityName").value = "";
+        renderBulkRecentHistory();
+        showToast(`Berhasil ditambahkan ke ${selectedIds.length} pegawai sekaligus!`);
+      } catch (err) {
+        showToast("Gagal menyimpan: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "+ Tambahkan ke Semua Pegawai Sekarang";
+      }
+    }
+
+    function renderBulkRecentHistory() {
+      const container = document.getElementById("bulkRecentHistory");
+      const today = document.getElementById("bulkDate").value || getTodayISO();
+      const todayReports = reports.filter(r => r.report_date === today);
+
+      // Kelompokkan berdasarkan nama aktivitas & waktu input agar terlihat ringkas
+      const grouped = [];
+      const seen = new Set();
+      for (let i = todayReports.length - 1; i >= 0; i--) {
+        const r = todayReports[i];
+        const key = `${r.title}|${r.duration_minutes}|${r.index_val}|${r.eselon || ''}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          const count = todayReports.filter(item => `${item.title}|${item.duration_minutes}|${item.index_val}|${item.eselon || ''}` === key).length;
+          grouped.push({ ...r, count });
+        }
+        if (grouped.length >= 5) break;
+      }
+
+      if (grouped.length === 0) {
+        container.innerHTML = `<p class="text-slate-400">Belum ada aktivitas tercatat pada tanggal ${today}.</p>`;
+        return;
+      }
+
+      container.innerHTML = grouped.map(item => `
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+          <p class="font-semibold text-slate-800 line-clamp-2">${item.title}</p>
+          <div class="flex flex-wrap items-center justify-between gap-1 mt-1.5 text-[11px] text-slate-500">
+            <span>${item.eselon || 'Non-Eselon'} • ${item.duration_minutes} × ${formatNum(item.index_val)} = <strong class="text-teal-700">${formatNum(item.duration_minutes * item.index_val)} Poin</strong></span>
+            <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">${item.count} Pegawai</span>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    // =========================================================================
+    // HALAMAN DETAIL LAPORAN PEGAWAI
+    // =========================================================================
     function openEmployeeReport(empId) {
       selectedEmployeeId = empId;
       const emp = employees.find(e => e.id === empId);
@@ -498,26 +735,9 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       const dateInput = document.getElementById("reportDate");
       if (!dateInput.value) dateInput.value = getTodayISO();
 
-      document.getElementById("employeeListView").classList.add("hidden");
+      hideAllViews();
       document.getElementById("reportDetailView").classList.remove("hidden");
-      updateLiveCalculation();
       renderReports();
-    }
-
-    function showEmployeeList() {
-      selectedEmployeeId = null;
-      document.getElementById("reportDetailView").classList.add("hidden");
-      document.getElementById("employeeListView").classList.remove("hidden");
-      renderEmployees();
-    }
-
-    // Perhitungan Durasi & Poin (Format: Waktu (Menit) x Indeks = Poin)
-    function calculateDurationMinutes(start, end) {
-      if (!start || !end) return 0;
-      const [sh, sm] = start.split(":").map(Number);
-      const [eh, em] = end.split(":").map(Number);
-      const diff = (eh * 60 + em) - (sh * 60 + sm);
-      return diff > 0 ? diff : 0;
     }
 
     function formatDuration(minutes) {
@@ -527,70 +747,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       return `${minutes} Menit (${h} Jam ${m} Menit)`;
     }
 
-    function updateLiveCalculation() {
-      const start = document.getElementById("startTime").value;
-      const end = document.getElementById("endTime").value;
-      const indexVal = parseFloat(document.getElementById("taskIndex").value) || 1;
-
-      const mins = calculateDurationMinutes(start, end);
-      const points = mins * indexVal;
-
-      document.getElementById("previewDuration").textContent = formatDuration(mins);
-      document.getElementById("previewPoints").textContent = `${mins} × ${formatNum(indexVal)} = ${formatNum(points)} Poin`;
-    }
-
-    // Tambah Kegiatan
-    async function addActivity(e) {
-      e.preventDefault();
-      if (!selectedEmployeeId) return;
-
-      const reportDate = document.getElementById("reportDate").value || getTodayISO();
-      const startTime = document.getElementById("startTime").value;
-      const endTime = document.getElementById("endTime").value;
-      const title = document.getElementById("taskTitle").value.trim();
-      const output = document.getElementById("taskOutput").value.trim();
-      const indexVal = parseFloat(document.getElementById("taskIndex").value) || 1;
-      const status = document.getElementById("taskStatus").value;
-
-      const durationMinutes = calculateDurationMinutes(startTime, endTime);
-      if (durationMinutes <= 0) {
-        showToast("Jam selesai harus lebih besar dari jam mulai!");
-        return;
-      }
-
-      const points = Number((durationMinutes * indexVal).toFixed(2));
-      const newReport = {
-        id: "rep-" + Date.now(),
-        employee_id: selectedEmployeeId,
-        report_date: reportDate,
-        start_time: startTime,
-        end_time: endTime,
-        duration_minutes: durationMinutes,
-        title,
-        output,
-        index_val: indexVal,
-        points,
-        status
-      };
-
-      if (isSupabaseConnected && supabaseClient) {
-        const { error } = await supabaseClient.from("reports").insert([newReport]);
-        if (error) {
-          showToast("Gagal menyimpan ke database: " + error.message);
-          return;
-        }
-      }
-
-      reports.push(newReport);
-      saveLocalData();
-
-      document.getElementById("taskTitle").value = "";
-      document.getElementById("taskOutput").value = "";
-      renderReports();
-      showToast("Laporan kegiatan berhasil disimpan!");
-    }
-
-    // Hapus Kegiatan
     async function deleteActivity(repId) {
       if (isSupabaseConnected && supabaseClient) {
         const { error } = await supabaseClient.from("reports").delete().eq("id", repId);
@@ -605,7 +761,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       showToast("Kegiatan dihapus.");
     }
 
-    // Render Daftar Laporan & Akumulasi
     function renderReports() {
       const selectedDate = document.getElementById("reportDate").value || getTodayISO();
       const filtered = reports
@@ -638,19 +793,19 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
             <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="px-2.5 py-0.5 rounded-lg bg-teal-50 text-teal-700 font-semibold text-xs">
-                  ${item.start_time} - ${item.end_time} (${mins} Menit)
+                  ${mins} Menit
                 </span>
+                ${item.eselon ? `<span class="px-2.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 font-semibold text-xs">${item.eselon}</span>` : ''}
                 <span class="px-2.5 py-0.5 rounded-lg bg-amber-50 text-amber-700 font-semibold text-xs">
                   ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin
                 </span>
               </div>
-              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full ${item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}">
-                ${item.status}
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                ${item.status || 'Selesai'}
               </span>
             </div>
 
-            <p class="text-sm font-medium text-slate-800 mb-1">${idx + 1}. ${item.title}</p>
-            <p class="text-xs text-slate-500 mb-3">Output: <span class="font-medium text-slate-700">${item.output}</span></p>
+            <p class="text-sm font-medium text-slate-800 mb-3">${idx + 1}. ${item.title}</p>
 
             <div class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-100">
               <button onclick="copyActivityTextOnly('${item.id}')"
@@ -693,11 +848,10 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       const text = `*LAPORAN KINERJA HARIAN*
 Nama: ${emp.name}
 Tanggal: ${item.report_date}
-Waktu: ${item.start_time} - ${item.end_time} (${mins} Menit)
+Eselon: ${item.eselon || '-'}
 Kegiatan: ${item.title}
-Output: ${item.output}
-Poin: ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin
-Status: ${item.status}`;
+Waktu: ${mins} Menit
+Poin: ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin`;
 
       navigator.clipboard.writeText(text);
       showToast("Detail kegiatan berhasil disalin!");
@@ -723,7 +877,7 @@ Status: ${item.status}`;
         const mins = Number(item.duration_minutes || 0);
         const idxVal = Number(item.index_val || 1);
         const pts = mins * idxVal;
-        return `${i + 1}. [${item.start_time}-${item.end_time}] ${item.title} (Output: ${item.output} | ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin)`;
+        return `${i + 1}. ${item.title} (${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin)`;
       }).join("\n");
 
       const recapText = `*REKAP LAPORAN KINERJA HARIAN*
@@ -777,6 +931,9 @@ ${lines}
       saveLocalData();
       populateDivisionFilter();
       renderEmployees();
+      if (!document.getElementById("bulkInputView").classList.contains("hidden")) {
+        renderBulkRecipients();
+      }
       closeAddEmployeeModal();
       e.target.reset();
       showToast("Pegawai baru berhasil ditambahkan!");
