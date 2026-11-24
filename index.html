@@ -53,7 +53,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 class="text-base sm:text-lg font-bold text-slate-800">Daftar Pegawai</h2>
-            <p class="text-xs sm:text-sm text-slate-500">Klik nama pegawai untuk melihat daftar aktivitas & menyalin laporan kinerja harian.</p>
+            <p class="text-xs sm:text-sm text-slate-500">Klik nama pegawai untuk melihat seluruh aktivitas kinerja & menyalin laporan.</p>
           </div>
           <div class="flex flex-col sm:flex-row gap-2.5">
             <input type="text" id="searchInput" oninput="renderEmployees()" placeholder="Cari nama atau NIP..."
@@ -201,17 +201,21 @@
       </div>
     </section>
 
-    <!-- VIEW 3: DETAIL LAPORAN PEGAWAI -->
+    <!-- VIEW 3: DETAIL LAPORAN PEGAWAI (MENAMPILKAN SEMUA TANGGAL) -->
     <section id="reportDetailView" class="hidden">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <button onclick="showEmployeeList()"
           class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 shadow-sm transition">
           ← Kembali ke Daftar Pegawai
         </button>
-        <div class="flex items-center gap-2">
-          <label for="reportDate" class="text-xs sm:text-sm font-medium text-slate-600">Tanggal Laporan:</label>
+        <div class="flex flex-wrap items-center gap-2">
+          <label for="reportDate" class="text-xs sm:text-sm font-medium text-slate-600">Filter Tanggal:</label>
           <input type="date" id="reportDate" onchange="renderReports()"
             class="px-3 py-1.5 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <button type="button" id="resetDateFilterBtn" onclick="resetDateFilter()"
+            class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-teal-600 text-white shadow-sm transition">
+            Semua Tanggal
+          </button>
         </div>
       </div>
 
@@ -229,14 +233,14 @@
           </div>
           <button onclick="copyAllRecap()"
             class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
-            📋 Salin Rekap Harian
+            📋 Salin Rekap Aktivitas
           </button>
         </div>
 
         <!-- Panel Akumulasi -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4">
           <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5">
-            <p class="text-xs text-slate-500 font-medium">Total Kegiatan</p>
+            <p class="text-xs text-slate-500 font-medium">Total Kegiatan (<span id="periodLabelText">Semua Tanggal</span>)</p>
             <p id="totalActivitiesCount" class="text-xl font-bold text-slate-800 mt-0.5">0 Kegiatan</p>
           </div>
           <div class="bg-teal-50/70 border border-teal-200/80 rounded-xl p-3.5">
@@ -250,12 +254,12 @@
         </div>
       </div>
 
-      <!-- Daftar Kegiatan Tanggal Terpilih + Pencarian Aktivitas -->
+      <!-- Daftar Kegiatan Semua Tanggal + Pencarian Aktivitas -->
       <div>
         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 class="text-base font-bold text-slate-800">Daftar Aktivitas Tercatat</h3>
-            <p class="text-xs text-slate-500">Cari nama aktivitas di bawah untuk mempermudah penyalinan.</p>
+            <p class="text-xs text-slate-500">Menampilkan aktivitas kinerja pada semua tanggal.</p>
           </div>
           <div class="flex flex-wrap items-center gap-2.5">
             <div class="relative flex-1 sm:w-72">
@@ -585,7 +589,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
 
     // Hapus Pegawai
     async function deleteEmployee(event, empId) {
-      event.stopPropagation(); // Mencegah kartu pegawai terbuka saat klik tombol hapus
+      event.stopPropagation();
       const emp = employees.find(e => e.id === empId);
       if (!emp) return;
 
@@ -612,7 +616,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
     function renderEmployees() {
       const query = document.getElementById("searchInput").value.toLowerCase();
       const divFilter = document.getElementById("divisionFilter").value;
-      const today = getTodayISO();
 
       const filtered = employees.filter(emp => {
         const matchQuery = emp.name.toLowerCase().includes(query) || emp.nip.toLowerCase().includes(query);
@@ -627,9 +630,9 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       }
 
       grid.innerHTML = filtered.map(emp => {
-        const todayReports = reports.filter(r => r.employee_id === emp.id && r.report_date === today);
-        const hasReported = todayReports.length > 0;
-        const totalPoints = todayReports.reduce((acc, r) => acc + Number(r.duration_minutes || 0) * Number(r.index_val || 1), 0);
+        const empReports = reports.filter(r => r.employee_id === emp.id);
+        const hasReported = empReports.length > 0;
+        const totalPoints = empReports.reduce((acc, r) => acc + Number(r.duration_minutes || 0) * Number(r.index_val || 1), 0);
         const initials = emp.name.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase();
 
         return `
@@ -642,7 +645,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
                 </div>
                 <div class="flex items-center gap-1.5">
                   <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${hasReported ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'}">
-                    ${hasReported ? `Sudah Lapor (${todayReports.length})` : 'Belum Lapor'}
+                    ${hasReported ? `${empReports.length} Aktivitas` : 'Belum Ada Aktivitas'}
                   </span>
                   <button type="button" onclick="deleteEmployee(event, '${emp.id}')" title="Hapus Pegawai"
                     class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition">
@@ -656,7 +659,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
             </div>
             <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span class="text-slate-400">${emp.division}</span>
-              <span class="font-semibold text-teal-600">${hasReported ? `${formatNum(totalPoints)} Poin Hari Ini →` : 'Lihat Laporan →'}</span>
+              <span class="font-semibold text-teal-600">${hasReported ? `Total ${formatNum(totalPoints)} Poin →` : 'Lihat Laporan →'}</span>
             </div>
           </div>
         `;
@@ -885,7 +888,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
     }
 
     // =========================================================================
-    // HALAMAN DETAIL LAPORAN PEGAWAI
+    // HALAMAN DETAIL LAPORAN PEGAWAI (SEMUA TANGGAL)
     // =========================================================================
     function openEmployeeReport(empId) {
       selectedEmployeeId = empId;
@@ -897,14 +900,17 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       document.getElementById("selectedName").textContent = emp.name;
       document.getElementById("selectedMeta").textContent = `NIP: ${emp.nip} • ${emp.role} • ${emp.division}`;
 
-      const dateInput = document.getElementById("reportDate");
-      if (!dateInput.value) dateInput.value = getTodayISO();
-
-      // Reset input pencarian aktivitas saat membuka pegawai baru
+      // Default kosongkan filter tanggal agar tampil SEMUA TANGGAL
+      document.getElementById("reportDate").value = "";
       document.getElementById("activitySearchInput").value = "";
 
       hideAllViews();
       document.getElementById("reportDetailView").classList.remove("hidden");
+      renderReports();
+    }
+
+    function resetDateFilter() {
+      document.getElementById("reportDate").value = "";
       renderReports();
     }
 
@@ -930,31 +936,44 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
     }
 
     function renderReports() {
-      const selectedDate = document.getElementById("reportDate").value || getTodayISO();
+      const selectedDate = document.getElementById("reportDate").value; // Jika kosong = tampilkan semua tanggal
       const searchQuery = (document.getElementById("activitySearchInput").value || "").toLowerCase().trim();
 
-      const allDateReports = reports
-        .filter(r => r.employee_id === selectedEmployeeId && r.report_date === selectedDate);
+      // Update tampilan tombol "Semua Tanggal" & label periode
+      const resetBtn = document.getElementById("resetDateFilterBtn");
+      const periodLabel = document.getElementById("periodLabelText");
+      if (selectedDate) {
+        resetBtn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700 transition";
+        periodLabel.textContent = selectedDate;
+      } else {
+        resetBtn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-teal-600 text-white shadow-sm transition";
+        periodLabel.textContent = "Semua Tanggal";
+      }
 
-      // Akumulasi tetap menghitung total keseluruhan tanggal terpilih
-      const totalMinutes = allDateReports.reduce((sum, r) => sum + Number(r.duration_minutes || 0), 0);
-      const totalPoints = allDateReports.reduce((sum, r) => sum + (Number(r.duration_minutes || 0) * Number(r.index_val || 1)), 0);
+      // Ambil laporan pegawai (semua tanggal atau filter tanggal tertentu), urutkan tanggal terbaru
+      const scopedReports = reports
+        .filter(r => r.employee_id === selectedEmployeeId && (!selectedDate || r.report_date === selectedDate))
+        .sort((a, b) => (b.report_date || "").localeCompare(a.report_date || ""));
 
-      document.getElementById("totalActivitiesCount").textContent = `${allDateReports.length} Kegiatan`;
+      const totalMinutes = scopedReports.reduce((sum, r) => sum + Number(r.duration_minutes || 0), 0);
+      const totalPoints = scopedReports.reduce((sum, r) => sum + (Number(r.duration_minutes || 0) * Number(r.index_val || 1)), 0);
+
+      document.getElementById("totalActivitiesCount").textContent = `${scopedReports.length} Kegiatan`;
       document.getElementById("totalDurationText").textContent = formatDuration(totalMinutes);
       document.getElementById("totalPointsText").textContent = `${formatNum(totalPoints)} Poin`;
 
       // Filter berdasarkan kata kunci pencarian aktivitas
-      const filtered = allDateReports.filter(r =>
+      const filtered = scopedReports.filter(r =>
         r.title.toLowerCase().includes(searchQuery) ||
-        (r.eselon && r.eselon.toLowerCase().includes(searchQuery))
+        (r.eselon && r.eselon.toLowerCase().includes(searchQuery)) ||
+        (r.report_date && r.report_date.includes(searchQuery))
       );
 
       const listEl = document.getElementById("activityList");
-      if (allDateReports.length === 0) {
+      if (scopedReports.length === 0) {
         listEl.innerHTML = `
           <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500 text-sm">
-            Belum ada laporan aktivitas pada tanggal <strong>${selectedDate}</strong>.
+            Belum ada laporan aktivitas ${selectedDate ? `pada tanggal <strong>${selectedDate}</strong>` : 'untuk pegawai ini'}.
           </div>`;
         return;
       }
@@ -976,6 +995,9 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
           <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:border-slate-300 transition">
             <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
               <div class="flex flex-wrap items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-700 font-semibold text-xs">
+                  📅 ${item.report_date || '-'}
+                </span>
                 <span class="px-2.5 py-0.5 rounded-lg bg-teal-50 text-teal-700 font-semibold text-xs">
                   ${mins} Menit
                 </span>
@@ -1041,12 +1063,13 @@ Poin: ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin`;
       showToast("Detail kegiatan berhasil disalin!");
     }
 
-    // Salin Rekap Keseluruhan Tanggal Terpilih
+    // Salin Rekap Keseluruhan (Semua Tanggal atau Tanggal Terpilih)
     function copyAllRecap() {
       const emp = employees.find(e => e.id === selectedEmployeeId);
-      const selectedDate = document.getElementById("reportDate").value || getTodayISO();
+      const selectedDate = document.getElementById("reportDate").value;
       const filtered = reports
-        .filter(r => r.employee_id === selectedEmployeeId && r.report_date === selectedDate);
+        .filter(r => r.employee_id === selectedEmployeeId && (!selectedDate || r.report_date === selectedDate))
+        .sort((a, b) => (b.report_date || "").localeCompare(a.report_date || ""));
 
       if (!emp || filtered.length === 0) {
         showToast("Tidak ada data laporan untuk disalin.");
@@ -1060,14 +1083,14 @@ Poin: ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin`;
         const mins = Number(item.duration_minutes || 0);
         const idxVal = Number(item.index_val || 1);
         const pts = mins * idxVal;
-        return `${i + 1}. ${item.title} (${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin)`;
+        return `${i + 1}. [${item.report_date}] ${item.title} (${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin)`;
       }).join("\n");
 
-      const recapText = `*REKAP LAPORAN KINERJA HARIAN*
+      const recapText = `*REKAP LAPORAN KINERJA PEGAWAI*
 Nama: ${emp.name}
 NIP: ${emp.nip}
 Jabatan: ${emp.role}
-Tanggal: ${selectedDate}
+Periode: ${selectedDate || 'Semua Tanggal'}
 
 *Rincian Kegiatan:*
 ${lines}
@@ -1078,7 +1101,7 @@ ${lines}
 - Akumulasi Poin: ${formatNum(totalPoints)} Poin`;
 
       navigator.clipboard.writeText(recapText);
-      showToast("Rekap harian lengkap berhasil disalin!");
+      showToast("Rekap aktivitas berhasil disalin!");
     }
 
     // Modal Pegawai
@@ -1164,7 +1187,6 @@ ${lines}
     }
 
     // Start App
-    document.getElementById("reportDate").value = getTodayISO();
     populatePresetDropdown();
     initDatabase();
   </script>
