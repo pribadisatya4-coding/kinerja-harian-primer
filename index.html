@@ -26,7 +26,8 @@
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
+      <!-- Menu Aksi (Hanya Muncul di Dashboard Utama) -->
+      <div id="headerActionMenu" class="flex flex-wrap items-center gap-2">
         <button onclick="showBulkInputDashboard()" id="navBulkBtn"
           class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition">
           ⚡ Input Kinerja Harian
@@ -51,7 +52,7 @@
   <!-- Main Content -->
   <main class="max-w-6xl mx-auto px-4 sm:px-6 py-6">
 
-    <!-- VIEW 1: DAFTAR PEGAWAI -->
+    <!-- VIEW 1: DAFTAR PEGAWAI (DASHBOARD UTAMA) -->
     <section id="employeeListView">
       <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm mb-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -223,7 +224,7 @@
       </div>
     </section>
 
-    <!-- VIEW 3: DETAIL LAPORAN PEGAWAI (MENAMPILKAN SEMUA TANGGAL) -->
+    <!-- VIEW 3: DETAIL LAPORAN PEGAWAI (DASHBOARD PEGAWAI) -->
     <section id="reportDetailView" class="hidden">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <button onclick="showEmployeeList()"
@@ -917,7 +918,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     let currentGroupedHistory = [];
 
     // =========================================================================
-    // HELPER LOGO / FOTO PEGAWAI (AVATAR + KOMPRESI OTOMATIS)
+    // HELPER LOGO / FOTO PEGAWAI
     // =========================================================================
     function getInitials(name) {
       return (name || "PG").split(" ").slice(0, 2).map(n => n[0] || "").join("").toUpperCase() || "PG";
@@ -948,7 +949,6 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       reader.onload = function(e) {
         const img = new Image();
         img.onload = function() {
-          // Kompres gambar maksimal 200x200px agar hemat ruang penyimpanan
           const canvas = document.createElement("canvas");
           const maxSize = 200;
           let width = img.width;
@@ -1017,7 +1017,6 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       return allRows;
     }
 
-    // Simpan Master Aktivitas ke LocalStorage & Supabase
     async function savePresetActivities() {
       localStorage.setItem("ekinerja_presets_v3", JSON.stringify(PRESET_ACTIVITIES));
       if (isSupabaseConnected && supabaseClient && hasPresetTable) {
@@ -1279,9 +1278,23 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       document.getElementById("reportDetailView").classList.add("hidden");
     }
 
+    // Atur visibilitas tombol menu header (hanya tampil di Dashboard Utama)
+    function setHeaderMenuVisibility(isMainDashboard) {
+      const headerMenu = document.getElementById("headerActionMenu");
+      if (!headerMenu) return;
+      if (isMainDashboard) {
+        headerMenu.classList.remove("hidden");
+        headerMenu.classList.add("flex");
+      } else {
+        headerMenu.classList.add("hidden");
+        headerMenu.classList.remove("flex");
+      }
+    }
+
     function showEmployeeList() {
       selectedEmployeeId = null;
       hideAllViews();
+      setHeaderMenuVisibility(true);
       document.getElementById("employeeListView").classList.remove("hidden");
       renderEmployees();
     }
@@ -1289,6 +1302,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     function showBulkInputDashboard() {
       selectedEmployeeId = null;
       hideAllViews();
+      setHeaderMenuVisibility(false);
       document.getElementById("bulkInputView").classList.remove("hidden");
       const dateInput = document.getElementById("bulkReportDate");
       if (dateInput && !dateInput.value) {
@@ -1343,7 +1357,6 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
           fetchAllRows("reports", "created_at")
         ]);
 
-        // Pertahankan avatar_url lokal jika database belum memiliki kolom avatar_url
         const localMap = Object.fromEntries(employees.map(e => [e.id, e]));
         employees = empData.map(emp => ({
           ...emp,
@@ -1526,7 +1539,6 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       if (isSupabaseConnected && supabaseClient) {
         const { error } = await supabaseClient.from("employees").update(updatedFields).eq("id", empId);
         if (error) {
-          // Fallback jika kolom avatar_url belum dibuat di Supabase
           const { avatar_url, ...fallbackFields } = updatedFields;
           const { error: retryErr } = await supabaseClient.from("employees").update(fallbackFields).eq("id", empId);
           if (retryErr) {
@@ -2045,7 +2057,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     }
 
     // =========================================================================
-    // HALAMAN DETAIL LAPORAN PEGAWAI (SEMUA TANGGAL)
+    // HALAMAN DETAIL LAPORAN PEGAWAI (DASHBOARD PEGAWAI)
     // =========================================================================
     function openEmployeeReport(empId) {
       selectedEmployeeId = empId;
@@ -2060,6 +2072,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       document.getElementById("activitySearchInput").value = "";
 
       hideAllViews();
+      setHeaderMenuVisibility(false);
       document.getElementById("reportDetailView").classList.remove("hidden");
       renderReports();
     }
