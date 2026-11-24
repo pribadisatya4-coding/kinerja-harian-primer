@@ -76,8 +76,8 @@
           class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 shadow-sm transition">
           ← Kembali ke Daftar Pegawai
         </button>
-        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-          Master Aktivitas CANDI BADUNG (19 Item)
+        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+          ✓ Anti-Duplikasi Aktif (Hanya mengisi yang belum sinkron)
         </span>
       </div>
 
@@ -86,7 +86,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 mb-4">
           <div>
             <h2 class="text-base sm:text-lg font-bold text-slate-900">Daftar Semua Nama Aktivitas Harian (CANDI BADUNG)</h2>
-            <p class="text-xs text-slate-500">Klik <strong>Pilih</strong> untuk mengisi form otomatis, atau klik <strong>+ Kirim ke Semua</strong> untuk langsung menambahkan ke semua pegawai terpilih.</p>
+            <p class="text-xs text-slate-500">Aktivitas yang sudah masuk pada pegawai hari ini otomatis dilewati agar tidak ganda.</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <input type="text" id="presetSearchInput" oninput="renderAllPresetList()" placeholder="🔍 Filter nama aktivitas..."
@@ -108,7 +108,7 @@
             <div class="mb-5 pb-4 border-b border-slate-100">
               <h2 class="text-lg font-bold text-slate-900">Form Input Kinerja Harian (Semua Nama)</h2>
               <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
-                Sesuaikan detail aktivitas di bawah ini lalu tambahkan ke <strong>seluruh pegawai</strong> secara bersamaan.
+                Sesuaikan detail aktivitas di bawah ini lalu tambahkan ke pegawai terpilih yang belum memiliki aktivitas tersebut.
               </p>
             </div>
 
@@ -185,7 +185,7 @@
                 Pilih / Batal Semua
               </button>
             </div>
-            <p class="text-xs text-slate-500 mb-3">Secara default semua pegawai tercentang otomatis.</p>
+            <p class="text-xs text-slate-500 mb-3">Pegawai yang sudah memiliki aktivitas yang sama hari ini tidak akan terisi ganda.</p>
             <div id="bulkRecipientList" class="max-h-56 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl px-3"></div>
           </div>
 
@@ -445,12 +445,30 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
     let employees = [];
     let reports = [];
 
+    // Helper normalisasi teks aktivitas untuk pengecekan duplikasi akurat
+    function normalizeTitle(str) {
+      return (str || "").trim().toLowerCase().replace(/\s+/g, " ");
+    }
+
+    // Cek apakah pegawai sudah memiliki aktivitas dengan nama yang sama pada tanggal tertentu
+    function hasEmployeeActivityOnDate(empId, dateStr, titleStr) {
+      const targetNorm = normalizeTitle(titleStr);
+      return reports.some(r =>
+        r.employee_id === empId &&
+        r.report_date === dateStr &&
+        normalizeTitle(r.title) === targetNorm
+      );
+    }
+
     // Render seluruh 19 daftar aktivitas harian langsung terlihat di menu Input Kinerja Harian
     function renderAllPresetList() {
       const container = document.getElementById("allPresetActivitiesContainer");
       if (!container) return;
 
       const keyword = (document.getElementById("presetSearchInput")?.value || "").toLowerCase().trim();
+      const today = getTodayISO();
+      const selectedIds = Array.from(document.querySelectorAll(".bulk-emp-checkbox:checked")).map(cb => cb.value);
+
       const filtered = PRESET_ACTIVITIES.map((item, idx) => ({ ...item, originalIdx: idx }))
         .filter(item => item.title.toLowerCase().includes(keyword));
 
@@ -461,13 +479,17 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
 
       container.innerHTML = filtered.map(item => {
         const poin = item.minutes * item.index;
+        const alreadySyncedCount = selectedIds.filter(empId => hasEmployeeActivityOnDate(empId, today, item.title)).length;
+        const isFullySynced = selectedIds.length > 0 && alreadySyncedCount === selectedIds.length;
+
         return `
-          <div class="p-3 rounded-xl border border-slate-200 hover:border-teal-400 bg-slate-50/60 hover:bg-teal-50/40 transition flex flex-col justify-between gap-2">
+          <div class="p-3 rounded-xl border ${isFullySynced ? 'border-emerald-200 bg-emerald-50/40' : 'border-slate-200 hover:border-teal-400 bg-slate-50/60 hover:bg-teal-50/40'} transition flex flex-col justify-between gap-2">
             <div>
               <div class="flex items-start justify-between gap-2">
                 <p class="text-xs font-semibold text-slate-800 leading-snug">
                   <span class="text-teal-700 font-bold mr-1">${item.originalIdx + 1}.</span>${item.title}
                 </p>
+                ${isFullySynced ? `<span class="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">✓ Sinkron</span>` : ''}
               </div>
               <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
                 <span class="px-2 py-0.5 rounded bg-white border border-slate-200 text-[11px] font-medium text-slate-600">
@@ -484,8 +506,8 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
                 Pilih ke Form
               </button>
               <button type="button" onclick="quickInsertSinglePreset(${item.originalIdx})"
-                class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-teal-600 hover:bg-teal-700 text-white transition">
-                + Kirim ke Semua
+                class="px-2.5 py-1 rounded-lg text-[11px] font-semibold ${isFullySynced ? 'bg-slate-200 text-slate-500 cursor-default' : 'bg-teal-600 hover:bg-teal-700 text-white'} transition">
+                ${isFullySynced ? 'Sudah Terisi' : '+ Kirim ke Semua'}
               </button>
             </div>
           </div>
@@ -515,11 +537,19 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       }
 
       const reportDate = getTodayISO();
+      // Filter hanya pegawai yang BELUM memiliki aktivitas ini hari ini
+      const pendingEmpIds = selectedIds.filter(empId => !hasEmployeeActivityOnDate(empId, reportDate, preset.title));
+
+      if (pendingEmpIds.length === 0) {
+        showToast(`Aktivitas "${preset.title}" sudah sinkron pada semua pegawai terpilih.`);
+        return;
+      }
+
       const eselon = document.getElementById("bulkEselon").value;
       const points = Number((preset.minutes * preset.index).toFixed(2));
       const baseTime = Date.now();
 
-      const newBatchReports = selectedIds.map((empId, i) => {
+      const newBatchReports = pendingEmpIds.map((empId, i) => {
         const existingEmpReports = reports.filter(r => r.employee_id === empId && r.report_date === reportDate);
         const startTime = existingEmpReports.length > 0
           ? existingEmpReports[existingEmpReports.length - 1].end_time
@@ -544,8 +574,14 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
 
       try {
         await saveBatchToStorage(newBatchReports);
+        renderAllPresetList();
         renderBulkRecentHistory();
-        showToast(`"${preset.title}" ditambahkan ke ${selectedIds.length} pegawai!`);
+        const skippedCount = selectedIds.length - pendingEmpIds.length;
+        showToast(
+          skippedCount > 0
+            ? `Ditambahkan ke ${pendingEmpIds.length} pegawai (${skippedCount} sudah sinkron dilewati).`
+            : `"${preset.title}" ditambahkan ke ${pendingEmpIds.length} pegawai!`
+        );
       } catch (err) {
         showToast("Gagal menyimpan: " + err.message);
       }
@@ -568,7 +604,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       const toast = document.getElementById("toast");
       toast.textContent = msg;
       toast.classList.remove("opacity-0");
-      setTimeout(() => toast.classList.add("opacity-0"), 2600);
+      setTimeout(() => toast.classList.add("opacity-0"), 2800);
     }
 
     // Navigasi View
@@ -589,8 +625,8 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       selectedEmployeeId = null;
       hideAllViews();
       document.getElementById("bulkInputView").classList.remove("hidden");
-      renderAllPresetList();
       renderBulkRecipients();
+      renderAllPresetList();
       updateBulkCalculation();
       renderBulkRecentHistory();
     }
@@ -748,14 +784,14 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
     }
 
     // =========================================================================
-    // DASHBOARD INPUT MASSAL KE SEMUA PEGAWAI
+    // DASHBOARD INPUT MASSAL KE SEMUA PEGAWAI (ANTI-DUPLIKASI)
     // =========================================================================
     function renderBulkRecipients() {
       const container = document.getElementById("bulkRecipientList");
       container.innerHTML = employees.map(emp => `
         <label class="flex items-center justify-between py-2.5 cursor-pointer hover:bg-slate-50">
           <div class="flex items-center gap-2.5">
-            <input type="checkbox" class="bulk-emp-checkbox rounded text-teal-600 focus:ring-teal-500" value="${emp.id}" checked onchange="updateSelectedRecipientCount()" />
+            <input type="checkbox" class="bulk-emp-checkbox rounded text-teal-600 focus:ring-teal-500" value="${emp.id}" checked onchange="onRecipientSelectionChange()" />
             <div>
               <p class="text-xs font-semibold text-slate-800">${emp.name}</p>
               <p class="text-[11px] text-slate-400">${emp.division}</p>
@@ -767,11 +803,16 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       updateSelectedRecipientCount();
     }
 
+    function onRecipientSelectionChange() {
+      updateSelectedRecipientCount();
+      renderAllPresetList();
+    }
+
     function toggleSelectAllRecipients() {
       const boxes = document.querySelectorAll(".bulk-emp-checkbox");
       const allChecked = Array.from(boxes).every(cb => cb.checked);
       boxes.forEach(cb => cb.checked = !allChecked);
-      updateSelectedRecipientCount();
+      onRecipientSelectionChange();
     }
 
     function updateSelectedRecipientCount() {
@@ -810,7 +851,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       saveLocalData();
     }
 
-    // Simpan 1 Aktivitas Terpilih ke Semua Pegawai
+    // Simpan 1 Aktivitas dari Form ke Pegawai Terpilih yang BELUM Punya Aktivitas Ini
     async function addBulkActivity(e) {
       e.preventDefault();
       const selectedIds = Array.from(document.querySelectorAll(".bulk-emp-checkbox:checked")).map(cb => cb.value);
@@ -831,10 +872,18 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
         return;
       }
 
+      // Hanya isi pegawai yang BELUM sinkron dengan aktivitas ini hari ini
+      const pendingEmpIds = selectedIds.filter(empId => !hasEmployeeActivityOnDate(empId, reportDate, title));
+
+      if (pendingEmpIds.length === 0) {
+        showToast("Aktivitas ini sudah sinkron pada semua pegawai terpilih!");
+        return;
+      }
+
       const points = Number((durationMinutes * indexVal).toFixed(2));
       const baseTime = Date.now();
 
-      const newBatchReports = selectedIds.map((empId, i) => {
+      const newBatchReports = pendingEmpIds.map((empId, i) => {
         const existingEmpReports = reports.filter(r => r.employee_id === empId && r.report_date === reportDate);
         const startTime = existingEmpReports.length > 0
           ? existingEmpReports[existingEmpReports.length - 1].end_time
@@ -859,13 +908,19 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
 
       const btn = document.getElementById("bulkSubmitBtn");
       btn.disabled = true;
-      btn.textContent = "Menyimpan ke semua pegawai...";
+      btn.textContent = "Menyimpan ke pegawai yang belum terisi...";
 
       try {
         await saveBatchToStorage(newBatchReports);
         document.getElementById("bulkActivityName").value = "";
+        renderAllPresetList();
         renderBulkRecentHistory();
-        showToast(`Berhasil ditambahkan ke ${selectedIds.length} pegawai sekaligus!`);
+        const skippedCount = selectedIds.length - pendingEmpIds.length;
+        showToast(
+          skippedCount > 0
+            ? `Berhasil ditambahkan ke ${pendingEmpIds.length} pegawai (${skippedCount} sudah sinkron dilewati).`
+            : `Berhasil ditambahkan ke ${pendingEmpIds.length} pegawai!`
+        );
       } catch (err) {
         showToast("Gagal menyimpan: " + err.message);
       } finally {
@@ -874,7 +929,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       }
     }
 
-    // Masukkan Semua 19 Template CANDI BADUNG Sekaligus ke Pegawai Terpilih
+    // Masukkan Semua 19 Template CANDI BADUNG Sekaligus (HANYA YANG BELUM TERISI)
     async function insertAllPresetActivities() {
       const selectedIds = Array.from(document.querySelectorAll(".bulk-emp-checkbox:checked")).map(cb => cb.value);
       if (selectedIds.length === 0) {
@@ -887,11 +942,12 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       const btn = document.getElementById("bulkInsertAllPresetsBtn");
 
       btn.disabled = true;
-      btn.textContent = "Memasukkan 19 aktivitas...";
+      btn.textContent = "Memeriksa & menyinkronkan...";
 
       try {
         const baseTime = Date.now();
         const allBatch = [];
+        let affectedEmployees = 0;
 
         selectedIds.forEach((empId, empIdx) => {
           const existingEmpReports = reports.filter(r => r.employee_id === empId && r.report_date === reportDate);
@@ -899,32 +955,46 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
             ? existingEmpReports[existingEmpReports.length - 1].end_time
             : "08:00";
 
-          PRESET_ACTIVITIES.forEach((preset, pIdx) => {
-            const endTime = addMinutesToTime(currentStart, preset.minutes);
-            const points = Number((preset.minutes * preset.index).toFixed(2));
+          // Filter hanya aktivitas yang BELUM ada pada pegawai ini hari ini
+          const missingPresets = PRESET_ACTIVITIES.filter(preset =>
+            !hasEmployeeActivityOnDate(empId, reportDate, preset.title)
+          );
 
-            allBatch.push({
-              id: `rep-${baseTime}-${empIdx}-${pIdx}`,
-              employee_id: empId,
-              report_date: reportDate,
-              start_time: currentStart,
-              end_time: endTime,
-              duration_minutes: preset.minutes,
-              title: preset.title,
-              output: `1 Kegiatan (${eselon})`,
-              eselon,
-              index_val: preset.index,
-              points,
-              status: "Selesai"
+          if (missingPresets.length > 0) {
+            affectedEmployees++;
+            missingPresets.forEach((preset, pIdx) => {
+              const endTime = addMinutesToTime(currentStart, preset.minutes);
+              const points = Number((preset.minutes * preset.index).toFixed(2));
+
+              allBatch.push({
+                id: `rep-${baseTime}-${empIdx}-${pIdx}`,
+                employee_id: empId,
+                report_date: reportDate,
+                start_time: currentStart,
+                end_time: endTime,
+                duration_minutes: preset.minutes,
+                title: preset.title,
+                output: `1 Kegiatan (${eselon})`,
+                eselon,
+                index_val: preset.index,
+                points,
+                status: "Selesai"
+              });
+
+              currentStart = endTime;
             });
-
-            currentStart = endTime;
-          });
+          }
         });
 
+        if (allBatch.length === 0) {
+          showToast("Semua 19 aktivitas sudah lengkap & sinkron pada seluruh pegawai terpilih!");
+          return;
+        }
+
         await saveBatchToStorage(allBatch);
+        renderAllPresetList();
         renderBulkRecentHistory();
-        showToast(`19 aktivitas CANDI BADUNG berhasil ditambahkan ke ${selectedIds.length} pegawai!`);
+        showToast(`Sinkronisasi selesai! ${allBatch.length} aktivitas baru ditambahkan untuk ${affectedEmployees} pegawai.`);
       } catch (err) {
         showToast("Gagal import massal: " + err.message);
       } finally {
@@ -1215,6 +1285,7 @@ ${lines}
       renderEmployees();
       if (!document.getElementById("bulkInputView").classList.contains("hidden")) {
         renderBulkRecipients();
+        renderAllPresetList();
       }
       closeAddEmployeeModal();
       e.target.reset();
