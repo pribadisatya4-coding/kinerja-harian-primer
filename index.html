@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>E-Kinerja Harian Pegawai - Yankes Badung</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3 cursor-pointer" onclick="showEmployeeList()">
+        <div class="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center font-bold text-lg shadow">
+          EK
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">E-Kinerja Harian Pegawai</h1>
+          <p class="text-xs text-slate-500">Sistem Pelaporan Aktivitas & Akumulasi Poin</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="openDbModal()" id="dbStatusBtn"
+          class="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+          <span id="dbStatusDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
+          <span id="dbStatusText">Mode Lokal</span>
+        </button>
+        <button onclick="openAddEmployeeModal()"
+          class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition">
+          + Tambah Pegawai
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+
+    <!-- VIEW 1: DAFTAR PEGAWAI -->
+    <section id="employeeListView">
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-slate-800">Daftar Pegawai</h2>
+            <p class="text-xs sm:text-sm text-slate-500">Klik nama pegawai untuk masuk ke halaman pelaporan kinerja harian.</p>
+          </div>
+          <div class="flex flex-col sm:flex-row gap-2.5">
+            <input type="text" id="searchInput" oninput="renderEmployees()" placeholder="Cari nama atau NIP..."
+              class="px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            <select id="divisionFilter" onchange="renderEmployees()"
+              class="px-3.5 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <option value="">Semua Bidang / Divisi</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="employeeGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- VIEW 2: DETAIL LAPORAN PEGAWAI -->
+    <section id="reportDetailView" class="hidden">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <button onclick="showEmployeeList()"
+          class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 shadow-sm transition">
+          ← Kembali ke Daftar Pegawai
+        </button>
+        <div class="flex items-center gap-2">
+          <label for="reportDate" class="text-xs sm:text-sm font-medium text-slate-600">Tanggal Laporan:</label>
+          <input type="date" id="reportDate" onchange="renderReports()"
+            class="px-3 py-1.5 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500" />
+        </div>
+      </div>
+
+      <!-- Info Pegawai & Ringkasan Akumulasi -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm mb-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+          <div class="flex items-center gap-4">
+            <div id="selectedAvatar" class="w-14 h-14 rounded-2xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-xl">
+              PG
+            </div>
+            <div>
+              <h2 id="selectedName" class="text-xl font-bold text-slate-900">Nama Pegawai</h2>
+              <p id="selectedMeta" class="text-xs sm:text-sm text-slate-500">NIP • Jabatan • Divisi</p>
+            </div>
+          </div>
+          <button onclick="copyAllRecap()"
+            class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
+            📋 Salin Rekap Harian
+          </button>
+        </div>
+
+        <!-- Panel Akumulasi -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4">
+          <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5">
+            <p class="text-xs text-slate-500 font-medium">Total Kegiatan</p>
+            <p id="totalActivitiesCount" class="text-xl font-bold text-slate-800 mt-0.5">0 Kegiatan</p>
+          </div>
+          <div class="bg-teal-50/70 border border-teal-200/80 rounded-xl p-3.5">
+            <p class="text-xs text-teal-700 font-medium">Akumulasi Waktu Kerja</p>
+            <p id="totalDurationText" class="text-xl font-bold text-teal-800 mt-0.5">0 Jam 0 Menit</p>
+          </div>
+          <div class="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5">
+            <p class="text-xs text-amber-700 font-medium">Akumulasi Poin Kinerja</p>
+            <p id="totalPointsText" class="text-xl font-bold text-amber-800 mt-0.5">0.00 Poin</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Form Tambah Kegiatan -->
+        <div class="lg:col-span-5">
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm sticky top-24">
+            <h3 class="text-base font-bold text-slate-800 mb-4">Input Aktivitas Harian</h3>
+            <form id="activityForm" onsubmit="addActivity(event)" class="space-y-3.5">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Jam Mulai</label>
+                  <input type="time" id="startTime" value="08:00" oninput="updateLiveCalculation()" required
+                    class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Jam Selesai</label>
+                  <input type="time" id="endTime" value="10:00" oninput="updateLiveCalculation()" required
+                    class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none" />
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Uraian Tugas / Kegiatan</label>
+                <textarea id="taskTitle" rows="3" placeholder="Contoh: Verifikasi berkas permohonan izin operasional klinik..." required
+                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"></textarea>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Output / Hasil</label>
+                  <input type="text" id="taskOutput" placeholder="Contoh: 5 Dokumen / 1 Laporan" required
+                    class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Index / Bobot Poin</label>
+                  <select id="taskIndex" onchange="updateLiveCalculation()"
+                    class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+                    <option value="1.0">1.0x (Rutin / Administrasi)</option>
+                    <option value="1.25">1.25x (Pelayanan / Verifikasi)</option>
+                    <option value="1.5">1.5x (Koordinasi / Lapangan)</option>
+                    <option value="1.75">1.75x (Analisis / Evaluasi)</option>
+                    <option value="2.0">2.0x (Prioritas / Khusus)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Status Penyelesaian</label>
+                <select id="taskStatus"
+                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+                  <option value="Selesai">Selesai</option>
+                  <option value="Proses">Dalam Proses</option>
+                </select>
+              </div>
+
+              <!-- Preview Perhitungan Otomatis -->
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between text-xs">
+                <div>
+                  <span class="text-slate-500">Estimasi Durasi:</span>
+                  <strong id="previewDuration" class="text-slate-800 ml-1">2 Jam 0 Menit</strong>
+                </div>
+                <div>
+                  <span class="text-slate-500">Poin:</span>
+                  <strong id="previewPoints" class="text-teal-700 ml-1">2.00 Poin</strong>
+                </div>
+              </div>
+
+              <button type="submit"
+                class="w-full py-2.5 px-4 rounded-xl text-sm font-semibold bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition">
+                + Simpan Laporan Kegiatan
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Daftar Kegiatan Tanggal Terpilih -->
+        <div class="lg:col-span-7">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-base font-bold text-slate-800">Daftar Aktivitas Tercatat</h3>
+            <button onclick="copyAllRecap()" class="text-xs font-semibold text-teal-700 hover:underline">
+              Salin Semua
+            </button>
+          </div>
+          <div id="activityList" class="space-y-3"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal Tambah Pegawai -->
+  <div id="addEmployeeModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-slate-900">Tambah Pegawai Baru</h3>
+        <button onclick="closeAddEmployeeModal()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+      </div>
+      <form onsubmit="addEmployee(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Lengkap & Gelar</label>
+          <input type="text" id="empName" required placeholder="Contoh: I Made Wijaya, S.KM"
+            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">NIP / NIK Pegawai</label>
+          <input type="text" id="empNip" required placeholder="Contoh: 199004122015031002"
+            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Jabatan</label>
+          <input type="text" id="empRole" required placeholder="Contoh: Administrator Kesehatan"
+            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Bidang / Divisi</label>
+          <input type="text" id="empDivision" required placeholder="Contoh: Pelayanan Kesehatan"
+            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500" />
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeAddEmployeeModal()"
+            class="px-4 py-2 text-sm rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Batal</button>
+          <button type="submit"
+            class="px-4 py-2 text-sm font-semibold rounded-xl bg-teal-600 hover:bg-teal-700 text-white">Simpan Pegawai</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Pengaturan Database Supabase -->
+  <div id="dbModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-bold text-slate-900">Pengaturan Database Supabase</h3>
+        <button onclick="closeDbModal()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+      </div>
+      <p class="text-xs text-slate-600 mb-4">
+        Hubungkan aplikasi dengan Supabase agar data pegawai dan laporan tersimpan permanen lintas perangkat.
+      </p>
+
+      <div class="space-y-3 mb-5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Supabase Project URL</label>
+          <input type="url" id="supabaseUrlInput" placeholder="https://xyzcompany.supabase.co"
+            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Supabase Anon / Publishable Key</label>
+          <input type="text" id="supabaseKeyInput" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500" />
+        </div>
+        <div class="flex flex-wrap gap-2 pt-1">
+          <button onclick="saveSupabaseConfig()"
+            class="px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl bg-teal-600 hover:bg-teal-700 text-white">
+            Simpan & Hubungkan
+          </button>
+          <button onclick="resetSupabaseConfig()"
+            class="px-4 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100">
+            Gunakan Mode Lokal
+          </button>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-200 pt-4">
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-xs font-bold text-slate-700">Skrip SQL Setup Tabel (Jalankan di SQL Editor Supabase)</span>
+          <button onclick="copySqlScript()" class="text-xs font-semibold text-teal-600 hover:underline">Salin SQL</button>
+        </div>
+        <pre id="sqlScriptBox" class="bg-slate-900 text-slate-100 text-[11px] p-3 rounded-xl overflow-x-auto leading-relaxed">-- Tabel Pegawai
+CREATE TABLE IF NOT EXISTS employees (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  nip TEXT NOT NULL,
+  role TEXT NOT NULL,
+  division TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tabel Laporan Kinerja Harian
+CREATE TABLE IF NOT EXISTS reports (
+  id TEXT PRIMARY KEY,
+  employee_id TEXT REFERENCES employees(id) ON DELETE CASCADE,
+  report_date DATE NOT NULL,
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  duration_minutes INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  output TEXT NOT NULL,
+  index_val NUMERIC(4,2) DEFAULT 1.0,
+  points NUMERIC(6,2) DEFAULT 0,
+  status TEXT DEFAULT 'Selesai',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Aktifkan RLS & Kebijakan Akses Publik
+ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public Access Employees" ON employees;
+CREATE POLICY "Public Access Employees" ON employees FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public Access Reports" ON reports;
+CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK (true);</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifikasi -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs sm:text-sm px-4 py-3 rounded-xl shadow-lg opacity-0 pointer-events-none transition-opacity duration-300 z-50">
+    Berhasil disalin!
+  </div>
+
+  <script>
+    // =========================================================================
+    // KONFIGURASI DEFAULT SUPABASE (Isi jika ingin langsung terkoneksi saat deploy)
+    // =========================================================================
+    const DEFAULT_SUPABASE_URL = "";
+    const DEFAULT_SUPABASE_ANON_KEY = "";
+
+    let supabaseClient = null;
+    let isSupabaseConnected = false;
+    let selectedEmployeeId = null;
+
+    const defaultEmployees = [
+      { id: "emp-1", name: "I Made Wijaya, S.KM", nip: "198805142014031001", role: "Administrator Kesehatan", division: "Pelayanan Kesehatan" },
+      { id: "emp-2", name: "Ni Luh Putu Sari, A.Md.Keb", nip: "199208212019032004", role: "Pengelola Perizinan Fasyankes", division: "Pelayanan Kesehatan" },
+      { id: "emp-3", name: "I Gede Arya Pratama, S.Kom", nip: "199502102022031003", role: "Pranata Komputer", division: "Sekretariat & Data" }
+    ];
+
+    let employees = [];
+    let reports = [];
+
+    // Inisialisasi Tanggal Hari Ini
+    function getTodayISO() {
+      const now = new Date();
+      const offset = now.getTimezoneOffset() * 60000;
+      return new Date(now - offset).toISOString().split("T")[0];
+    }
+
+    // Toast Helper
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      toast.textContent = msg;
+      toast.classList.remove("opacity-0");
+      setTimeout(() => toast.classList.add("opacity-0"), 2600);
+    }
+
+    // Inisialisasi Koneksi Supabase
+    async function initDatabase() {
+      const savedUrl = localStorage.getItem("ekinerja_sb_url") || DEFAULT_SUPABASE_URL;
+      const savedKey = localStorage.getItem("ekinerja_sb_key") || DEFAULT_SUPABASE_ANON_KEY;
+
+      document.getElementById("supabaseUrlInput").value = savedUrl;
+      document.getElementById("supabaseKeyInput").value = savedKey;
+
+      if (savedUrl && savedKey && window.supabase) {
+        try {
+          supabaseClient = window.supabase.createClient(savedUrl, savedKey);
+          const { data: empData, error: empErr } = await supabaseClient.from("employees").select("*").order("created_at", { ascending: true });
+          if (empErr) throw empErr;
+
+          const { data: repData, error: repErr } = await supabaseClient.from("reports").select("*").order("start_time", { ascending: true });
+          if (repErr) throw repErr;
+
+          isSupabaseConnected = true;
+          updateDbBadge(true);
+
+          if (empData.length === 0) {
+            await supabaseClient.from("employees").insert(defaultEmployees);
+            employees = [...defaultEmployees];
+          } else {
+            employees = empData;
+          }
+          reports = repData || [];
+          populateDivisionFilter();
+          renderEmployees();
+          return;
+        } catch (err) {
+          console.error("Supabase connection error:", err);
+          showToast("Gagal terhubung ke Supabase, beralih ke Mode Lokal.");
+        }
+      }
+
+      // Fallback Mode Lokal
+      isSupabaseConnected = false;
+      updateDbBadge(false);
+      employees = JSON.parse(localStorage.getItem("ekinerja_employees")) || [...defaultEmployees];
+      reports = JSON.parse(localStorage.getItem("ekinerja_reports")) || [];
+      saveLocalData();
+      populateDivisionFilter();
+      renderEmployees();
+    }
+
+    function updateDbBadge(connected) {
+      const dot = document.getElementById("dbStatusDot");
+      const text = document.getElementById("dbStatusText");
+      if (connected) {
+        dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+        text.textContent = "Supabase Terhubung";
+      } else {
+        dot.className = "w-2 h-2 rounded-full bg-amber-500";
+        text.textContent = "Mode Lokal";
+      }
+    }
+
+    function saveLocalData() {
+      localStorage.setItem("ekinerja_employees", JSON.stringify(employees));
+      localStorage.setItem("ekinerja_reports", JSON.stringify(reports));
+    }
+
+    // Filter Divisi
+    function populateDivisionFilter() {
+      const select = document.getElementById("divisionFilter");
+      const currentVal = select.value;
+      const divisions = [...new Set(employees.map(e => e.division))];
+      select.innerHTML = `<option value="">Semua Bidang / Divisi</option>` +
+        divisions.map(d => `<option value="${d}">${d}</option>`).join("");
+      select.value = currentVal;
+    }
+
+    // Render Daftar Pegawai
+    function renderEmployees() {
+      const query = document.getElementById("searchInput").value.toLowerCase();
+      const divFilter = document.getElementById("divisionFilter").value;
+      const today = getTodayISO();
+
+      const filtered = employees.filter(emp => {
+        const matchQuery = emp.name.toLowerCase().includes(query) || emp.nip.toLowerCase().includes(query);
+        const matchDiv = !divFilter || emp.division === divFilter;
+        return matchQuery && matchDiv;
+      });
+
+      const grid = document.getElementById("employeeGrid");
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="col-span-full bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-500 text-sm">Tidak ada pegawai yang sesuai pencarian.</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(emp => {
+        const todayReports = reports.filter(r => r.employee_id === emp.id && r.report_date === today);
+        const hasReported = todayReports.length > 0;
+        const totalPoints = todayReports.reduce((acc, r) => acc + Number(r.points || 0), 0);
+        const initials = emp.name.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase();
+
+        return `
+          <div onclick="openEmployeeReport('${emp.id}')"
+            class="bg-white rounded-2xl border border-slate-200 p-5 hover:border-teal-500 hover:shadow-md transition cursor-pointer group flex flex-col justify-between">
+            <div>
+              <div class="flex items-start justify-between gap-3 mb-3">
+                <div class="w-11 h-11 rounded-xl bg-teal-50 text-teal-700 group-hover:bg-teal-600 group-hover:text-white transition flex items-center justify-center font-bold text-sm">
+                  ${initials}
+                </div>
+                <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${hasReported ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'}">
+                  ${hasReported ? `Sudah Lapor (${todayReports.length})` : 'Belum Lapor'}
+                </span>
+              </div>
+              <h3 class="font-bold text-slate-900 group-hover:text-teal-700 transition text-base">${emp.name}</h3>
+              <p class="text-xs text-slate-500 mt-0.5">NIP: ${emp.nip}</p>
+              <p class="text-xs font-medium text-slate-600 mt-2">${emp.role}</p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+              <span class="text-slate-400">${emp.division}</span>
+              <span class="font-semibold text-teal-600">${hasReported ? `${totalPoints.toFixed(2)} Poin Hari Ini →` : 'Input Laporan →'}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    // Navigasi ke Halaman Detail Laporan Pegawai
+    function openEmployeeReport(empId) {
+      selectedEmployeeId = empId;
+      const emp = employees.find(e => e.id === empId);
+      if (!emp) return;
+
+      const initials = emp.name.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase();
+      document.getElementById("selectedAvatar").textContent = initials;
+      document.getElementById("selectedName").textContent = emp.name;
+      document.getElementById("selectedMeta").textContent = `NIP: ${emp.nip} • ${emp.role} • ${emp.division}`;
+
+      const dateInput = document.getElementById("reportDate");
+      if (!dateInput.value) dateInput.value = getTodayISO();
+
+      document.getElementById("employeeListView").classList.add("hidden");
+      document.getElementById("reportDetailView").classList.remove("hidden");
+      updateLiveCalculation();
+      renderReports();
+    }
+
+    function showEmployeeList() {
+      selectedEmployeeId = null;
+      document.getElementById("reportDetailView").classList.add("hidden");
+      document.getElementById("employeeListView").classList.remove("hidden");
+      renderEmployees();
+    }
+
+    // Perhitungan Durasi & Poin
+    function calculateDurationMinutes(start, end) {
+      if (!start || !end) return 0;
+      const [sh, sm] = start.split(":").map(Number);
+      const [eh, em] = end.split(":").map(Number);
+      const diff = (eh * 60 + em) - (sh * 60 + sm);
+      return diff > 0 ? diff : 0;
+    }
+
+    function formatDuration(minutes) {
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      return `${h} Jam ${m} Menit`;
+    }
+
+    function updateLiveCalculation() {
+      const start = document.getElementById("startTime").value;
+      const end = document.getElementById("endTime").value;
+      const indexVal = parseFloat(document.getElementById("taskIndex").value) || 1.0;
+
+      const mins = calculateDurationMinutes(start, end);
+      const hours = mins / 60;
+      const points = hours * indexVal;
+
+      document.getElementById("previewDuration").textContent = formatDuration(mins);
+      document.getElementById("previewPoints").textContent = `${points.toFixed(2)} Poin`;
+    }
+
+    // Tambah Kegiatan
+    async function addActivity(e) {
+      e.preventDefault();
+      if (!selectedEmployeeId) return;
+
+      const reportDate = document.getElementById("reportDate").value || getTodayISO();
+      const startTime = document.getElementById("startTime").value;
+      const endTime = document.getElementById("endTime").value;
+      const title = document.getElementById("taskTitle").value.trim();
+      const output = document.getElementById("taskOutput").value.trim();
+      const indexVal = parseFloat(document.getElementById("taskIndex").value) || 1.0;
+      const status = document.getElementById("taskStatus").value;
+
+      const durationMinutes = calculateDurationMinutes(startTime, endTime);
+      if (durationMinutes <= 0) {
+        showToast("Jam selesai harus lebih besar dari jam mulai!");
+        return;
+      }
+
+      const points = Number(((durationMinutes / 60) * indexVal).toFixed(2));
+      const newReport = {
+        id: "rep-" + Date.now(),
+        employee_id: selectedEmployeeId,
+        report_date: reportDate,
+        start_time: startTime,
+        end_time: endTime,
+        duration_minutes: durationMinutes,
+        title,
+        output,
+        index_val: indexVal,
+        points,
+        status
+      };
+
+      if (isSupabaseConnected && supabaseClient) {
+        const { error } = await supabaseClient.from("reports").insert([newReport]);
+        if (error) {
+          showToast("Gagal menyimpan ke database: " + error.message);
+          return;
+        }
+      }
+
+      reports.push(newReport);
+      saveLocalData();
+
+      document.getElementById("taskTitle").value = "";
+      document.getElementById("taskOutput").value = "";
+      renderReports();
+      showToast("Laporan kegiatan berhasil disimpan!");
+    }
+
+    // Hapus Kegiatan
+    async function deleteActivity(repId) {
+      if (isSupabaseConnected && supabaseClient) {
+        const { error } = await supabaseClient.from("reports").delete().eq("id", repId);
+        if (error) {
+          showToast("Gagal menghapus dari database.");
+          return;
+        }
+      }
+      reports = reports.filter(r => r.id !== repId);
+      saveLocalData();
+      renderReports();
+      showToast("Kegiatan dihapus.");
+    }
+
+    // Render Daftar Laporan & Akumulasi
+    function renderReports() {
+      const selectedDate = document.getElementById("reportDate").value || getTodayISO();
+      const filtered = reports
+        .filter(r => r.employee_id === selectedEmployeeId && r.report_date === selectedDate)
+        .sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+      const totalMinutes = filtered.reduce((sum, r) => sum + Number(r.duration_minutes || 0), 0);
+      const totalPoints = filtered.reduce((sum, r) => sum + Number(r.points || 0), 0);
+
+      document.getElementById("totalActivitiesCount").textContent = `${filtered.length} Kegiatan`;
+      document.getElementById("totalDurationText").textContent = formatDuration(totalMinutes);
+      document.getElementById("totalPointsText").textContent = `${totalPoints.toFixed(2)} Poin`;
+
+      const listEl = document.getElementById("activityList");
+      if (filtered.length === 0) {
+        listEl.innerHTML = `
+          <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500 text-sm">
+            Belum ada laporan aktivitas pada tanggal <strong>${selectedDate}</strong>.
+          </div>`;
+        return;
+      }
+
+      listEl.innerHTML = filtered.map((item, idx) => `
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:border-slate-300 transition">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-lg bg-teal-50 text-teal-700 font-semibold text-xs">
+                ${item.start_time} - ${item.end_time} (${formatDuration(item.duration_minutes)})
+              </span>
+              <span class="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 font-semibold text-xs">
+                Index ${Number(item.index_val).toFixed(2)}x • ${Number(item.points).toFixed(2)} Poin
+              </span>
+            </div>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full ${item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}">
+              ${item.status}
+            </span>
+          </div>
+
+          <p class="text-sm font-medium text-slate-800 mb-1">${idx + 1}. ${item.title}</p>
+          <p class="text-xs text-slate-500 mb-3">Output: <span class="font-medium text-slate-700">${item.output}</span></p>
+
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <button onclick="copySingleActivity('${item.id}')"
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-teal-50 text-slate-700 hover:text-teal-700 transition">
+              📋 Salin
+            </button>
+            <button onclick="deleteActivity('${item.id}')"
+              class="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 transition">
+              Hapus
+            </button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    // Salin Satu Kegiatan
+    function copySingleActivity(repId) {
+      const item = reports.find(r => r.id === repId);
+      const emp = employees.find(e => e.id === selectedEmployeeId);
+      if (!item || !emp) return;
+
+      const text = `*LAPORAN KINERJA HARIAN*
+Nama: ${emp.name}
+Tanggal: ${item.report_date}
+Waktu: ${item.start_time} - ${item.end_time} (${formatDuration(item.duration_minutes)})
+Kegiatan: ${item.title}
+Output: ${item.output}
+Index: ${Number(item.index_val).toFixed(2)}x | Poin: ${Number(item.points).toFixed(2)}
+Status: ${item.status}`;
+
+      navigator.clipboard.writeText(text);
+      showToast("Item kegiatan berhasil disalin!");
+    }
+
+    // Salin Rekap Keseluruhan Tanggal Terpilih
+    function copyAllRecap() {
+      const emp = employees.find(e => e.id === selectedEmployeeId);
+      const selectedDate = document.getElementById("reportDate").value || getTodayISO();
+      const filtered = reports
+        .filter(r => r.employee_id === selectedEmployeeId && r.report_date === selectedDate)
+        .sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+      if (!emp || filtered.length === 0) {
+        showToast("Tidak ada data laporan untuk disalin.");
+        return;
+      }
+
+      const totalMinutes = filtered.reduce((sum, r) => sum + Number(r.duration_minutes || 0), 0);
+      const totalPoints = filtered.reduce((sum, r) => sum + Number(r.points || 0), 0);
+
+      const lines = filtered.map((item, i) =>
+        `${i + 1}. [${item.start_time}-${item.end_time} | ${formatDuration(item.duration_minutes)}] ${item.title} (Output: ${item.output} | Index: ${Number(item.index_val).toFixed(2)}x | Poin: ${Number(item.points).toFixed(2)})`
+      ).join("\n");
+
+      const recapText = `*REKAP LAPORAN KINERJA HARIAN*
+Nama: ${emp.name}
+NIP: ${emp.nip}
+Jabatan: ${emp.role}
+Tanggal: ${selectedDate}
+
+*Rincian Kegiatan:*
+${lines}
+
+*Akumulasi Kinerja:*
+- Total Kegiatan: ${filtered.length} Kegiatan
+- Akumulasi Waktu: ${formatDuration(totalMinutes)}
+- Akumulasi Poin: ${totalPoints.toFixed(2)} Poin`;
+
+      navigator.clipboard.writeText(recapText);
+      showToast("Rekap harian lengkap berhasil disalin!");
+    }
+
+    // Modal Pegawai
+    function openAddEmployeeModal() {
+      document.getElementById("addEmployeeModal").classList.remove("hidden");
+      document.getElementById("addEmployeeModal").classList.add("flex");
+    }
+
+    function closeAddEmployeeModal() {
+      document.getElementById("addEmployeeModal").classList.add("hidden");
+      document.getElementById("addEmployeeModal").classList.remove("flex");
+    }
+
+    async function addEmployee(e) {
+      e.preventDefault();
+      const newEmp = {
+        id: "emp-" + Date.now(),
+        name: document.getElementById("empName").value.trim(),
+        nip: document.getElementById("empNip").value.trim(),
+        role: document.getElementById("empRole").value.trim(),
+        division: document.getElementById("empDivision").value.trim()
+      };
+
+      if (isSupabaseConnected && supabaseClient) {
+        const { error } = await supabaseClient.from("employees").insert([newEmp]);
+        if (error) {
+          showToast("Gagal menyimpan pegawai: " + error.message);
+          return;
+        }
+      }
+
+      employees.push(newEmp);
+      saveLocalData();
+      populateDivisionFilter();
+      renderEmployees();
+      closeAddEmployeeModal();
+      e.target.reset();
+      showToast("Pegawai baru berhasil ditambahkan!");
+    }
+
+    // Modal Database
+    function openDbModal() {
+      document.getElementById("dbModal").classList.remove("hidden");
+      document.getElementById("dbModal").classList.add("flex");
+    }
+
+    function closeDbModal() {
+      document.getElementById("dbModal").classList.add("hidden");
+      document.getElementById("dbModal").classList.remove("flex");
+    }
+
+    function saveSupabaseConfig() {
+      const url = document.getElementById("supabaseUrlInput").value.trim();
+      const key = document.getElementById("supabaseKeyInput").value.trim();
+      if (!url || !key) {
+        showToast("Masukkan URL dan Key Supabase terlebih dahulu.");
+        return;
+      }
+      localStorage.setItem("ekinerja_sb_url", url);
+      localStorage.setItem("ekinerja_sb_key", key);
+      closeDbModal();
+      initDatabase();
+      showToast("Menghubungkan ke Supabase...");
+    }
+
+    function resetSupabaseConfig() {
+      localStorage.removeItem("ekinerja_sb_url");
+      localStorage.removeItem("ekinerja_sb_key");
+      document.getElementById("supabaseUrlInput").value = "";
+      document.getElementById("supabaseKeyInput").value = "";
+      closeDbModal();
+      initDatabase();
+      showToast("Beralih ke Mode Lokal.");
+    }
+
+    function copySqlScript() {
+      const sql = document.getElementById("sqlScriptBox").textContent;
+      navigator.clipboard.writeText(sql);
+      showToast("Skrip SQL berhasil disalin!");
+    }
+
+    // Start App
+    document.getElementById("reportDate").value = getTodayISO();
+    initDatabase();
+  </script>
+</body>
+</html>
