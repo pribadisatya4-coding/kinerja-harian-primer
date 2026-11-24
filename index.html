@@ -250,13 +250,23 @@
         </div>
       </div>
 
-      <!-- Daftar Kegiatan Tanggal Terpilih -->
+      <!-- Daftar Kegiatan Tanggal Terpilih + Pencarian Aktivitas -->
       <div>
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-base font-bold text-slate-800">Daftar Aktivitas Tercatat</h3>
-          <button onclick="copyAllRecap()" class="text-xs font-semibold text-teal-700 hover:underline">
-            Salin Semua
-          </button>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Daftar Aktivitas Tercatat</h3>
+            <p class="text-xs text-slate-500">Cari nama aktivitas di bawah untuk mempermudah penyalinan.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <div class="relative flex-1 sm:w-72">
+              <input type="text" id="activitySearchInput" oninput="renderReports()"
+                placeholder="🔍 Cari aktivitas kinerja..."
+                class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            </div>
+            <button onclick="copyAllRecap()" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-xs font-semibold text-teal-700 transition">
+              Salin Semua
+            </button>
+          </div>
         </div>
         <div id="activityList" class="space-y-3"></div>
       </div>
@@ -573,6 +583,31 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       select.value = currentVal;
     }
 
+    // Hapus Pegawai
+    async function deleteEmployee(event, empId) {
+      event.stopPropagation(); // Mencegah kartu pegawai terbuka saat klik tombol hapus
+      const emp = employees.find(e => e.id === empId);
+      if (!emp) return;
+
+      const isConfirmed = confirm(`Hapus pegawai "${emp.name}" beserta seluruh data riwayat laporannya?`);
+      if (!isConfirmed) return;
+
+      if (isSupabaseConnected && supabaseClient) {
+        const { error } = await supabaseClient.from("employees").delete().eq("id", empId);
+        if (error) {
+          showToast("Gagal menghapus pegawai: " + error.message);
+          return;
+        }
+      }
+
+      employees = employees.filter(e => e.id !== empId);
+      reports = reports.filter(r => r.employee_id !== empId);
+      saveLocalData();
+      populateDivisionFilter();
+      renderEmployees();
+      showToast(`Pegawai "${emp.name}" berhasil dihapus.`);
+    }
+
     // Render Daftar Pegawai
     function renderEmployees() {
       const query = document.getElementById("searchInput").value.toLowerCase();
@@ -601,13 +636,19 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
           <div onclick="openEmployeeReport('${emp.id}')"
             class="bg-white rounded-2xl border border-slate-200 p-5 hover:border-teal-500 hover:shadow-md transition cursor-pointer group flex flex-col justify-between">
             <div>
-              <div class="flex items-start justify-between gap-3 mb-3">
-                <div class="w-11 h-11 rounded-xl bg-teal-50 text-teal-700 group-hover:bg-teal-600 group-hover:text-white transition flex items-center justify-center font-bold text-sm">
+              <div class="flex items-start justify-between gap-2 mb-3">
+                <div class="w-11 h-11 rounded-xl bg-teal-50 text-teal-700 group-hover:bg-teal-600 group-hover:text-white transition flex items-center justify-center font-bold text-sm shrink-0">
                   ${initials}
                 </div>
-                <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${hasReported ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'}">
-                  ${hasReported ? `Sudah Lapor (${todayReports.length})` : 'Belum Lapor'}
-                </span>
+                <div class="flex items-center gap-1.5">
+                  <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${hasReported ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'}">
+                    ${hasReported ? `Sudah Lapor (${todayReports.length})` : 'Belum Lapor'}
+                  </span>
+                  <button type="button" onclick="deleteEmployee(event, '${emp.id}')" title="Hapus Pegawai"
+                    class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition">
+                    🗑️
+                  </button>
+                </div>
               </div>
               <h3 class="font-bold text-slate-900 group-hover:text-teal-700 transition text-base">${emp.name}</h3>
               <p class="text-xs text-slate-500 mt-0.5">NIP: ${emp.nip}</p>
@@ -859,6 +900,9 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       const dateInput = document.getElementById("reportDate");
       if (!dateInput.value) dateInput.value = getTodayISO();
 
+      // Reset input pencarian aktivitas saat membuka pegawai baru
+      document.getElementById("activitySearchInput").value = "";
+
       hideAllViews();
       document.getElementById("reportDetailView").classList.remove("hidden");
       renderReports();
@@ -887,21 +931,38 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
 
     function renderReports() {
       const selectedDate = document.getElementById("reportDate").value || getTodayISO();
-      const filtered = reports
+      const searchQuery = (document.getElementById("activitySearchInput").value || "").toLowerCase().trim();
+
+      const allDateReports = reports
         .filter(r => r.employee_id === selectedEmployeeId && r.report_date === selectedDate);
 
-      const totalMinutes = filtered.reduce((sum, r) => sum + Number(r.duration_minutes || 0), 0);
-      const totalPoints = filtered.reduce((sum, r) => sum + (Number(r.duration_minutes || 0) * Number(r.index_val || 1)), 0);
+      // Akumulasi tetap menghitung total keseluruhan tanggal terpilih
+      const totalMinutes = allDateReports.reduce((sum, r) => sum + Number(r.duration_minutes || 0), 0);
+      const totalPoints = allDateReports.reduce((sum, r) => sum + (Number(r.duration_minutes || 0) * Number(r.index_val || 1)), 0);
 
-      document.getElementById("totalActivitiesCount").textContent = `${filtered.length} Kegiatan`;
+      document.getElementById("totalActivitiesCount").textContent = `${allDateReports.length} Kegiatan`;
       document.getElementById("totalDurationText").textContent = formatDuration(totalMinutes);
       document.getElementById("totalPointsText").textContent = `${formatNum(totalPoints)} Poin`;
 
+      // Filter berdasarkan kata kunci pencarian aktivitas
+      const filtered = allDateReports.filter(r =>
+        r.title.toLowerCase().includes(searchQuery) ||
+        (r.eselon && r.eselon.toLowerCase().includes(searchQuery))
+      );
+
       const listEl = document.getElementById("activityList");
-      if (filtered.length === 0) {
+      if (allDateReports.length === 0) {
         listEl.innerHTML = `
           <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500 text-sm">
             Belum ada laporan aktivitas pada tanggal <strong>${selectedDate}</strong>.
+          </div>`;
+        return;
+      }
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = `
+          <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500 text-sm">
+            Tidak ditemukan aktivitas yang cocok dengan kata kunci "<strong>${searchQuery}</strong>".
           </div>`;
         return;
       }
