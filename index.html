@@ -105,11 +105,11 @@
           </div>
           <div class="bg-teal-50/70 border border-teal-200/80 rounded-xl p-3.5">
             <p class="text-xs text-teal-700 font-medium">Akumulasi Waktu Kerja</p>
-            <p id="totalDurationText" class="text-xl font-bold text-teal-800 mt-0.5">0 Jam 0 Menit</p>
+            <p id="totalDurationText" class="text-xl font-bold text-teal-800 mt-0.5">0 Menit (0 Jam 0 Menit)</p>
           </div>
           <div class="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5">
             <p class="text-xs text-amber-700 font-medium">Akumulasi Poin Kinerja</p>
-            <p id="totalPointsText" class="text-xl font-bold text-amber-800 mt-0.5">0.00 Poin</p>
+            <p id="totalPointsText" class="text-xl font-bold text-amber-800 mt-0.5">0 Poin</p>
           </div>
         </div>
       </div>
@@ -128,7 +128,7 @@
                 </div>
                 <div>
                   <label class="block text-xs font-semibold text-slate-600 mb-1">Jam Selesai</label>
-                  <input type="time" id="endTime" value="10:00" oninput="updateLiveCalculation()" required
+                  <input type="time" id="endTime" value="08:10" oninput="updateLiveCalculation()" required
                     class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none" />
                 </div>
               </div>
@@ -149,11 +149,11 @@
                   <label class="block text-xs font-semibold text-slate-600 mb-1">Index / Bobot Poin</label>
                   <select id="taskIndex" onchange="updateLiveCalculation()"
                     class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none">
-                    <option value="1.0">1.0x (Rutin / Administrasi)</option>
-                    <option value="1.25">1.25x (Pelayanan / Verifikasi)</option>
-                    <option value="1.5">1.5x (Koordinasi / Lapangan)</option>
-                    <option value="1.75">1.75x (Analisis / Evaluasi)</option>
-                    <option value="2.0">2.0x (Prioritas / Khusus)</option>
+                    <option value="1">1 (Rutin / Administrasi)</option>
+                    <option value="1.25">1.25 (Pelayanan / Verifikasi)</option>
+                    <option value="1.5">1.5 (Koordinasi / Lapangan)</option>
+                    <option value="1.75">1.75 (Analisis / Evaluasi)</option>
+                    <option value="2">2 (Prioritas / Khusus)</option>
                   </select>
                 </div>
               </div>
@@ -167,15 +167,15 @@
                 </select>
               </div>
 
-              <!-- Preview Perhitungan Otomatis -->
-              <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between text-xs">
+              <!-- Preview Perhitungan Otomatis (Format: Waktu x Indeks = Poin) -->
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div>
-                  <span class="text-slate-500">Estimasi Durasi:</span>
-                  <strong id="previewDuration" class="text-slate-800 ml-1">2 Jam 0 Menit</strong>
+                  <span class="text-slate-500">Durasi:</span>
+                  <strong id="previewDuration" class="text-slate-800 ml-1">10 Menit</strong>
                 </div>
                 <div>
-                  <span class="text-slate-500">Poin:</span>
-                  <strong id="previewPoints" class="text-teal-700 ml-1">2.00 Poin</strong>
+                  <span class="text-slate-500">Hitungan Poin:</span>
+                  <strong id="previewPoints" class="text-teal-700 ml-1">10 × 1 = 10 Poin</strong>
                 </div>
               </div>
 
@@ -299,7 +299,7 @@ CREATE TABLE IF NOT EXISTS reports (
   title TEXT NOT NULL,
   output TEXT NOT NULL,
   index_val NUMERIC(4,2) DEFAULT 1.0,
-  points NUMERIC(6,2) DEFAULT 0,
+  points NUMERIC(8,2) DEFAULT 0,
   status TEXT DEFAULT 'Selesai',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -347,6 +347,11 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       const now = new Date();
       const offset = now.getTimezoneOffset() * 60000;
       return new Date(now - offset).toISOString().split("T")[0];
+    }
+
+    // Format Angka Bersih (menghilangkan .00 jika bilangan bulat)
+    function formatNum(num) {
+      return Number(Number(num || 0).toFixed(2)).toString();
     }
 
     // Toast Helper
@@ -451,7 +456,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       grid.innerHTML = filtered.map(emp => {
         const todayReports = reports.filter(r => r.employee_id === emp.id && r.report_date === today);
         const hasReported = todayReports.length > 0;
-        const totalPoints = todayReports.reduce((acc, r) => acc + Number(r.points || 0), 0);
+        const totalPoints = todayReports.reduce((acc, r) => acc + Number(r.duration_minutes || 0) * Number(r.index_val || 1), 0);
         const initials = emp.name.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase();
 
         return `
@@ -472,7 +477,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
             </div>
             <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span class="text-slate-400">${emp.division}</span>
-              <span class="font-semibold text-teal-600">${hasReported ? `${totalPoints.toFixed(2)} Poin Hari Ini →` : 'Input Laporan →'}</span>
+              <span class="font-semibold text-teal-600">${hasReported ? `${formatNum(totalPoints)} Poin Hari Ini →` : 'Input Laporan →'}</span>
             </div>
           </div>
         `;
@@ -506,7 +511,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       renderEmployees();
     }
 
-    // Perhitungan Durasi & Poin
+    // Perhitungan Durasi & Poin (Format: Waktu (Menit) x Indeks = Poin)
     function calculateDurationMinutes(start, end) {
       if (!start || !end) return 0;
       const [sh, sm] = start.split(":").map(Number);
@@ -518,20 +523,20 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
     function formatDuration(minutes) {
       const h = Math.floor(minutes / 60);
       const m = minutes % 60;
-      return `${h} Jam ${m} Menit`;
+      if (h === 0) return `${minutes} Menit`;
+      return `${minutes} Menit (${h} Jam ${m} Menit)`;
     }
 
     function updateLiveCalculation() {
       const start = document.getElementById("startTime").value;
       const end = document.getElementById("endTime").value;
-      const indexVal = parseFloat(document.getElementById("taskIndex").value) || 1.0;
+      const indexVal = parseFloat(document.getElementById("taskIndex").value) || 1;
 
       const mins = calculateDurationMinutes(start, end);
-      const hours = mins / 60;
-      const points = hours * indexVal;
+      const points = mins * indexVal;
 
       document.getElementById("previewDuration").textContent = formatDuration(mins);
-      document.getElementById("previewPoints").textContent = `${points.toFixed(2)} Poin`;
+      document.getElementById("previewPoints").textContent = `${mins} × ${formatNum(indexVal)} = ${formatNum(points)} Poin`;
     }
 
     // Tambah Kegiatan
@@ -544,7 +549,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       const endTime = document.getElementById("endTime").value;
       const title = document.getElementById("taskTitle").value.trim();
       const output = document.getElementById("taskOutput").value.trim();
-      const indexVal = parseFloat(document.getElementById("taskIndex").value) || 1.0;
+      const indexVal = parseFloat(document.getElementById("taskIndex").value) || 1;
       const status = document.getElementById("taskStatus").value;
 
       const durationMinutes = calculateDurationMinutes(startTime, endTime);
@@ -553,7 +558,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
         return;
       }
 
-      const points = Number(((durationMinutes / 60) * indexVal).toFixed(2));
+      const points = Number((durationMinutes * indexVal).toFixed(2));
       const newReport = {
         id: "rep-" + Date.now(),
         employee_id: selectedEmployeeId,
@@ -608,11 +613,11 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
         .sort((a, b) => a.start_time.localeCompare(b.start_time));
 
       const totalMinutes = filtered.reduce((sum, r) => sum + Number(r.duration_minutes || 0), 0);
-      const totalPoints = filtered.reduce((sum, r) => sum + Number(r.points || 0), 0);
+      const totalPoints = filtered.reduce((sum, r) => sum + (Number(r.duration_minutes || 0) * Number(r.index_val || 1)), 0);
 
       document.getElementById("totalActivitiesCount").textContent = `${filtered.length} Kegiatan`;
       document.getElementById("totalDurationText").textContent = formatDuration(totalMinutes);
-      document.getElementById("totalPointsText").textContent = `${totalPoints.toFixed(2)} Poin`;
+      document.getElementById("totalPointsText").textContent = `${formatNum(totalPoints)} Poin`;
 
       const listEl = document.getElementById("activityList");
       if (filtered.length === 0) {
@@ -623,41 +628,47 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
         return;
       }
 
-      listEl.innerHTML = filtered.map((item, idx) => `
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:border-slate-300 transition">
-          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-            <div class="flex items-center gap-2">
-              <span class="px-2.5 py-0.5 rounded-lg bg-teal-50 text-teal-700 font-semibold text-xs">
-                ${item.start_time} - ${item.end_time} (${formatDuration(item.duration_minutes)})
-              </span>
-              <span class="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 font-semibold text-xs">
-                Index ${Number(item.index_val).toFixed(2)}x • ${Number(item.points).toFixed(2)} Poin
+      listEl.innerHTML = filtered.map((item, idx) => {
+        const mins = Number(item.duration_minutes || 0);
+        const idxVal = Number(item.index_val || 1);
+        const pts = mins * idxVal;
+
+        return `
+          <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:border-slate-300 transition">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-lg bg-teal-50 text-teal-700 font-semibold text-xs">
+                  ${item.start_time} - ${item.end_time} (${mins} Menit)
+                </span>
+                <span class="px-2.5 py-0.5 rounded-lg bg-amber-50 text-amber-700 font-semibold text-xs">
+                  ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin
+                </span>
+              </div>
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full ${item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}">
+                ${item.status}
               </span>
             </div>
-            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full ${item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}">
-              ${item.status}
-            </span>
-          </div>
 
-          <p class="text-sm font-medium text-slate-800 mb-1">${idx + 1}. ${item.title}</p>
-          <p class="text-xs text-slate-500 mb-3">Output: <span class="font-medium text-slate-700">${item.output}</span></p>
+            <p class="text-sm font-medium text-slate-800 mb-1">${idx + 1}. ${item.title}</p>
+            <p class="text-xs text-slate-500 mb-3">Output: <span class="font-medium text-slate-700">${item.output}</span></p>
 
-          <div class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-100">
-            <button onclick="copyActivityTextOnly('${item.id}')"
-              class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-50 hover:bg-teal-100 text-teal-700 transition">
-              📝 Salin Teks
-            </button>
-            <button onclick="copySingleActivity('${item.id}')"
-              class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
-              📋 Salin Detail
-            </button>
-            <button onclick="deleteActivity('${item.id}')"
-              class="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 transition">
-              Hapus
-            </button>
+            <div class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button onclick="copyActivityTextOnly('${item.id}')"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-50 hover:bg-teal-100 text-teal-700 transition">
+                📝 Salin Teks
+              </button>
+              <button onclick="copySingleActivity('${item.id}')"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+                📋 Salin Detail
+              </button>
+              <button onclick="deleteActivity('${item.id}')"
+                class="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 transition">
+                Hapus
+              </button>
+            </div>
           </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
     }
 
     // Salin Hanya Kata-Kata Uraian Kegiatan
@@ -675,13 +686,17 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       const emp = employees.find(e => e.id === selectedEmployeeId);
       if (!item || !emp) return;
 
+      const mins = Number(item.duration_minutes || 0);
+      const idxVal = Number(item.index_val || 1);
+      const pts = mins * idxVal;
+
       const text = `*LAPORAN KINERJA HARIAN*
 Nama: ${emp.name}
 Tanggal: ${item.report_date}
-Waktu: ${item.start_time} - ${item.end_time} (${formatDuration(item.duration_minutes)})
+Waktu: ${item.start_time} - ${item.end_time} (${mins} Menit)
 Kegiatan: ${item.title}
 Output: ${item.output}
-Index: ${Number(item.index_val).toFixed(2)}x | Poin: ${Number(item.points).toFixed(2)}
+Poin: ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin
 Status: ${item.status}`;
 
       navigator.clipboard.writeText(text);
@@ -702,11 +717,14 @@ Status: ${item.status}`;
       }
 
       const totalMinutes = filtered.reduce((sum, r) => sum + Number(r.duration_minutes || 0), 0);
-      const totalPoints = filtered.reduce((sum, r) => sum + Number(r.points || 0), 0);
+      const totalPoints = filtered.reduce((sum, r) => sum + (Number(r.duration_minutes || 0) * Number(r.index_val || 1)), 0);
 
-      const lines = filtered.map((item, i) =>
-        `${i + 1}. [${item.start_time}-${item.end_time} | ${formatDuration(item.duration_minutes)}] ${item.title} (Output: ${item.output} | Index: ${Number(item.index_val).toFixed(2)}x | Poin: ${Number(item.points).toFixed(2)})`
-      ).join("\n");
+      const lines = filtered.map((item, i) => {
+        const mins = Number(item.duration_minutes || 0);
+        const idxVal = Number(item.index_val || 1);
+        const pts = mins * idxVal;
+        return `${i + 1}. [${item.start_time}-${item.end_time}] ${item.title} (Output: ${item.output} | ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin)`;
+      }).join("\n");
 
       const recapText = `*REKAP LAPORAN KINERJA HARIAN*
 Nama: ${emp.name}
@@ -720,7 +738,7 @@ ${lines}
 *Akumulasi Kinerja:*
 - Total Kegiatan: ${filtered.length} Kegiatan
 - Akumulasi Waktu: ${formatDuration(totalMinutes)}
-- Akumulasi Poin: ${totalPoints.toFixed(2)} Poin`;
+- Akumulasi Poin: ${formatNum(totalPoints)} Poin`;
 
       navigator.clipboard.writeText(recapText);
       showToast("Rekap harian lengkap berhasil disalin!");
