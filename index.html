@@ -76,29 +76,35 @@
           class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 shadow-sm transition">
           ← Kembali ke Daftar Pegawai
         </button>
-        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-          ✓ Anti-Duplikasi Aktif • <span id="totalMasterBadge">192</span> Master Aktivitas CANDI BADUNG
-        </span>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+            ✓ Anti-Duplikasi Aktif • <span id="totalMasterBadge">304</span> Master Aktivitas CANDI BADUNG
+          </span>
+          <button type="button" onclick="resetPresetActivitiesToDefault()"
+            class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700 transition">
+            ↺ Reset Master Default
+          </button>
+        </div>
       </div>
 
-      <!-- DAFTAR SEMUA NAMA AKTIVITAS HARIAN (TERLIHAT LANGSUNG) -->
+      <!-- DAFTAR SEMUA NAMA AKTIVITAS HARIAN (TERLIHAT LANGSUNG + EDIT & HAPUS) -->
       <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm mb-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 mb-4">
           <div>
             <h2 class="text-base sm:text-lg font-bold text-slate-900">Daftar Semua Nama Aktivitas Harian (CANDI BADUNG)</h2>
-            <p class="text-xs text-slate-500">Aktivitas yang sudah masuk pada pegawai hari ini otomatis dilewati agar tidak ganda.</p>
+            <p class="text-xs text-slate-500">Klik <strong>✏️</strong> untuk mengedit master aktivitas, <strong>🗑️</strong> untuk menghapus, atau <strong>+ Kirim ke Semua</strong> untuk mengisi pegawai.</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <input type="text" id="presetSearchInput" oninput="renderAllPresetList()" placeholder="🔍 Cari dari 192 aktivitas..."
+            <input type="text" id="presetSearchInput" oninput="renderAllPresetList()" placeholder="🔍 Cari dari 304 aktivitas..."
               class="px-3.5 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" />
             <button type="button" id="bulkInsertAllPresetsBtn" onclick="insertAllPresetActivities()"
               class="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition">
-              📥 Masukkan Semua (<span id="presetCountBtnLabel">192</span>) Aktivitas
+              📥 Masukkan Semua (<span id="presetCountBtnLabel">304</span>) Aktivitas
             </button>
           </div>
         </div>
 
-        <div id="allPresetActivitiesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-[380px] overflow-y-auto pr-1"></div>
+        <div id="allPresetActivitiesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-[420px] overflow-y-auto pr-1"></div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -282,11 +288,60 @@
     </section>
   </main>
 
+  <!-- Modal Edit Master Aktivitas (Daftar CANDI BADUNG) -->
+  <div id="editPresetModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-slate-900">Edit Master Aktivitas (CANDI BADUNG)</h3>
+        <button onclick="closeEditPresetModal()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+      </div>
+      <form onsubmit="saveEditedPreset(event)" class="space-y-3.5">
+        <input type="hidden" id="editPresetIdx" />
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Aktivitas</label>
+          <textarea id="editPresetTitle" rows="3" required
+            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500"></textarea>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Waktu (Menit)</label>
+            <input type="number" id="editPresetMinutes" min="1" max="1440" oninput="updateEditPresetPreview()" required
+              class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Indeks</label>
+            <select id="editPresetIndex" onchange="updateEditPresetPreview()" required
+              class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-teal-500">
+              <option value="1">1</option>
+              <option value="1.25">1.25</option>
+              <option value="1.5">1.5</option>
+              <option value="1.75">1.75</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Poin</label>
+            <input type="text" id="editPresetPoints" readonly
+              class="w-full px-3 py-2 text-sm font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded-xl outline-none" />
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeEditPresetModal()"
+            class="px-4 py-2 text-sm rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Batal</button>
+          <button type="submit"
+            class="px-4 py-2 text-sm font-semibold rounded-xl bg-teal-600 hover:bg-teal-700 text-white">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Modal Edit Kinerja Harian Massal -->
   <div id="editBulkReportModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-4 z-50">
     <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-slate-900">Edit Kinerja Harian</h3>
+        <h3 class="text-lg font-bold text-slate-900">Edit Kinerja Harian Tercatat</h3>
         <button onclick="closeEditBulkReportModal()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
       </div>
       <form onsubmit="saveEditedBulkReport(event)" class="space-y-3.5">
@@ -516,9 +571,9 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
 
   <script>
     // =========================================================================
-    // MASTER DATA AKTIVITAS CANDI BADUNG (LENGKAP 8 HALAMAN AKTIVITAS YANKES_2.pdf)
+    // MASTER DATA AKTIVITAS CANDI BADUNG (304 ITEM DARI AKTIVITAS YANKES_3.pdf)
     // =========================================================================
-    const PRESET_ACTIVITIES = [
+    const DEFAULT_PRESET_ACTIVITIES = [
       { title: "Menyiapkan Data Capaian Selama 1 Tahun Sebelumnya", minutes: 90, index: 2 },
       { title: "Menyiapkan Konsep Laporan", minutes: 90, index: 2 },
       { title: "Menganalisa Data Laporan", minutes: 120, index: 2 },
@@ -553,6 +608,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       { title: "Menyusun Rekomendasi Sertifikat Standar", minutes: 60, index: 2 },
       { title: "Menyiapkan Konsep Rekomendasi Sertifikat Standar", minutes: 40, index: 2 },
       { title: "Mengetik Rekomendasi Sertifikat Standar", minutes: 20, index: 1 },
+      { title: "Memeriksa Format Dan Kelengkapan Rekomendasi Sertifikat Standar", minutes: 15, index: 2 },
       { title: "Memeriksa Format Dan Kelengkapan Rekomendasi Sertifikat Standar", minutes: 15, index: 2 },
       { title: "Melakukan Verifikasi Permohonan Sertifikat Standar Aplikasi Oss", minutes: 40, index: 2 },
       { title: "Menyusun Rancangan Instrument Pembinaan Dan Pengawasan Perijinan Klinik Pratma", minutes: 240, index: 2 },
@@ -605,6 +661,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       { title: "Menyusun Laporan Hasil Workshop", minutes: 150, index: 2 },
       { title: "Menyusun Daftar Hadir Narasumber", minutes: 15, index: 1 },
       { title: "Memeriksa Daftar Penerimaan Honorarium Narasumber", minutes: 20, index: 2 },
+      { title: "Mengajukan Spj Ke Bagian Keuangan", minutes: 30, index: 2 },
       { title: "Menyusun Instrument Monev Upaya Peningkatan Mutu Fasyankes", minutes: 180, index: 2 },
       { title: "Menganalisis Bahan Dan Data Untuk Penyusunan Instrumen Sesuai Dengan Peraturan Perundang-Undangan Yang Berlaku", minutes: 120, index: 2 },
       { title: "Menyiapkan Konsep Instrumen Monev", minutes: 60, index: 2 },
@@ -619,13 +676,22 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       { title: "Menyusun Rka Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 120, index: 2 },
       { title: "Menyiapkan Konsep Rka", minutes: 60, index: 2 },
       { title: "Mengetik Rka", minutes: 60, index: 2 },
+      { title: "Memeriksa Format Dan Kelengkapan Rka", minutes: 20, index: 2 },
       { title: "Memeriksa Rka Hasil Input Di Sipd Pada Renja", minutes: 30, index: 2 },
+      { title: "Melakukan Desk Rka Di Bappeda", minutes: 60, index: 2 },
+      { title: "Melakukan Desk Di Bpkad", minutes: 90, index: 2 },
       { title: "Memeriksa Rka Hasil Input Di Sipd Pada Penganggaran", minutes: 30, index: 2 },
       { title: "Memeriksa Rka Hasil Input Di Sipd Penatausahaan", minutes: 30, index: 2 },
       { title: "Memeriksa Rka Di Aplikasi Sirup", minutes: 20, index: 2 },
       { title: "Menyusun Kak Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 90, index: 2 },
+      { title: "Menyiapkan Konsep Kak", minutes: 120, index: 2 },
+      { title: "Mengetik Kak", minutes: 120, index: 1 },
+      { title: "Memeriksa Format Dan Kelengkapan Kak", minutes: 20, index: 2 },
+      { title: "Mengadministrasikan Dan Mengesahkan Kak", minutes: 25, index: 2 },
       { title: "Mengarsipkan Kak", minutes: 10, index: 1 },
       { title: "Menyusun Sk Kegiatan Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 120, index: 2 },
+      { title: "Menghimpun Bahan Dan Data Untuk Penyusunan Rancangan Produk Hukum.", minutes: 120, index: 2 },
+      { title: "Mengumpulkan Peraturan Perundang-Undangan Sebagai Bahan Penyusunan Rancangan.", minutes: 90, index: 2 },
       { title: "Menyiapkan Konsep Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 90, index: 2 },
       { title: "Mengetik Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 40, index: 2 },
       { title: "Memeriksa Format Dan Kelengkapan Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 20, index: 2 },
@@ -633,22 +699,28 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       { title: "Melakukan Konsultasi Draft Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota Ke Bagian Hukum Setda", minutes: 90, index: 2 },
       { title: "Merevisi Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 45, index: 2 },
       { title: "Mengadministrasikan Dan Memberi Nomor Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 15, index: 2 },
+      { title: "Mengirimkan Soft Copy Draft Produk Hukum Keputusan Final Bupati Berupa Word Ke Email", minutes: 10, index: 1 },
       { title: "Mengarsipkan Sk Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 10, index: 2 },
       { title: "Mengkoordinir Penyusunan Surat Pertanggung Jawaban Atk, Bahan Komputer, Kertas Dan Cover Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 120, index: 2 },
       { title: "Mengkoordinir Pengajuan Surat Permohonan Dana Di Bagian Keuangan", minutes: 60, index: 2 },
       { title: "Memeriksa Spj Sebelum Diajukan Ke Bagian Keuangan", minutes: 30, index: 2 },
       { title: "Mengkoordinir Penyusunan Surat Pertanggung Jawaban Pelaksanaan Akreditasi Fasilitas Kesehatan Kabupaten/Kota", minutes: 180, index: 2 },
+      { title: "Mengkoordinir Pengajuan Surat Permohonan Dana Di Bagian Keuangan", minutes: 60, index: 2 },
+      { title: "Memeriksa Spj Sebelum Diajukan Ke Bagian Keuangan", minutes: 30, index: 2 },
       { title: "Mengkoordinir Penyusunan Jadwal Kegiatan Pendampingan", minutes: 60, index: 2 },
       { title: "Melaksanakan Pendampingan Re Akreditasi", minutes: 240, index: 2 },
       { title: "Menyusun Laporan Hasil Pendampingan Re-Akreditasi", minutes: 120, index: 2 },
       { title: "Memverifikasi Dan Memberikan Umpan Balik (Feed Back) Perencanaan Perbaikan Strategis (Pps) Klinik Pratama Pada Akun Dfo", minutes: 30, index: 2 },
       { title: "Memverifikasi Dan Memberikan Umpan Balik (Feed Back) Perencanaan Perbaikan Strategis (Pps) Puskesmas Pada Akun Dfo", minutes: 45, index: 2 },
       { title: "Menyiapkan Konsep Rka Pengembangan Puskesmas", minutes: 120, index: 2 },
+      { title: "Memeriksa Format Dan Kelengkapan Rka", minutes: 20, index: 2 },
       { title: "Memeriksa Rka Pengembangan Puskesmas Yang Diinput Di Sipd Pada Renja", minutes: 60, index: 2 },
       { title: "Melakukan Desk Rka Pengembangan Puskesmas Di Bappeda", minutes: 90, index: 2 },
+      { title: "Melakukan Desk Di Bpkad", minutes: 90, index: 2 },
       { title: "Memeriksa Rka Pengembangan Puskesmas Di Sipd Pada Penganggaran", minutes: 60, index: 2 },
       { title: "Mengkoordinir Pengajuan Surat Pertanggung Jawaban Atk, Bahan Komputer, Kertas Dan Cover Pengembangan Puskesmas", minutes: 60, index: 2 },
       { title: "Memeiksa Surat Permohonan Dana Yang Akan Diajukan Di Bagian Keuangan", minutes: 15, index: 2 },
+      { title: "Mengajukan Spj Ke Bagian Keuangan", minutes: 30, index: 2 },
       { title: "Melaksankan Pengadaan Ded", minutes: 60, index: 2 },
       { title: "Menyusun Draft Kontrak Ded", minutes: 120, index: 2 },
       { title: "Menyusun Draft Ssuk Dan Sskk Ded", minutes: 90, index: 2 },
@@ -666,40 +738,48 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       { title: "Menyiapkan Print Out Draft Kontrak Ded", minutes: 20, index: 2 },
       { title: "Mereview Keabsahan Dokumen Rekanan Pemenang", minutes: 60, index: 3 },
       { title: "Melakukan Klarifikasi Ketersediaan Tenaga Ahli (Personel) Yang Sudah Ditawarkan Rekanan Pemenang", minutes: 45, index: 2 },
-      { title: "Melaksanakan Rapat Pra Kontrak Ded", minutes: 120, index: 3 },
+      { title: "Melaksanakan Rapat Pra Kontrak Ded :", minutes: 120, index: 3 },
       { title: "Menyusun Berita Acara Pra Kontrak Ded", minutes: 60, index: 2 },
       { title: "Membuat Dokumen Kontrak/Surat Pesanan/Surat Perintah Kerja Untuk Ded", minutes: 90, index: 3 },
       { title: "Membuat Dokumen Spmk Untuk Ded", minutes: 45, index: 2 },
       { title: "Melakukan Serah Terima Personil Dan Lokasi Bersama Rekanan", minutes: 20, index: 2 },
-      { title: "Rapat Evaluasi Ded Bersama User Dan Rekanan", minutes: 150, index: 3 },
+      { title: "Rapat Evaluasi Ded Bersama User Dan Rekanan :", minutes: 150, index: 3 },
       { title: "Meminjam Dan Menyiapkan Ruangan Rapat Evaluasi Ded", minutes: 30, index: 1 },
       { title: "Melaksanakan Rapat Evaluasi Ded", minutes: 150, index: 3 },
       { title: "Mengikuti Rapat Evaluasi Ded", minutes: 120, index: 2 },
       { title: "Memeriksa Kesesuaian Produk Ded Berupa Gambar Rencana, Rab, Dan Spesifikasi Teknis Sebelum Disahkan Dan Diperbanyak", minutes: 180, index: 3 },
-      { title: "Mengesahkan Ded", minutes: 20, index: 3 },
+      { title: "Mengesahkan Ded :", minutes: 20, index: 3 },
       { title: "Menyusun Berita Acara Serah Terima Pekerjaan Dari Penyedia Ke Ppk", minutes: 60, index: 2 },
       { title: "Mengarsipkan Ded", minutes: 30, index: 1 },
       { title: "Penilain Terhadap Kinerja Penyedia Barang/Jasa Di Spse", minutes: 20, index: 2 },
       { title: "Menginput Dokumen Berita Acara Serah Terima Pada Spse", minutes: 15, index: 2 },
       { title: "Menginput Bukti Pembayaran Pada Spse", minutes: 15, index: 2 },
-      { title: "Melakukan Interpolasi Harga Feasibility Study (Studi Kelayakan)", minutes: 90, index: 3 },
+      { title: "Melakukan Interpolasi Harga Feasibility Study (Studi Kelayakan):", minutes: 90, index: 3 },
       { title: "Menentukan Volume/Jumlah Jasa Yang Dibutuhkan", minutes: 60, index: 2 },
       { title: "Menyusun Spesifikasi Teknis Yang Diinginkan Dari Barang/Jasa", minutes: 90, index: 2 },
       { title: "Menganalisis Lingkup Kerja Jasa Serta Batas Waktu Yang Dibutuhkan", minutes: 90, index: 3 },
       { title: "Menganalisis Kriteria 3 Penyedia Yang Kredibel, Legal Dan Memiliki Rekam Jejak Baik Untuk Menjadi Penyanding", minutes: 120, index: 3 },
+      { title: "Menganalisis Kriteria 3 Penyedia Yang Kredibel, Legal Dan Memiliki Rekam Jejak Baik Untuk Menjadi Penyanding", minutes: 120, index: 3 },
       { title: "Menginput Data Dukung Sbu Feasibility Study (Studi Kelayakan) Di Aplikasi Siusaha Badung", minutes: 30, index: 2 },
       { title: "Menyusun Draft Kontrak Feasibility Study (Studi Kelayakan)", minutes: 180, index: 2 },
       { title: "Menyusun Draft Ssuk Dan Sskk Feasibility Study (Studi Kelayakan)", minutes: 120, index: 2 },
+      { title: "Mengupload Dokumen Pendukung Berupa Rka, Boq, Hps, Data Dukung Hps, Kak, Rup, Nota Dinas, Ssuk, Sskk Dan Draft Kontrak Di Aplikasi E-Simpel", minutes: 45, index: 2 },
       { title: "Menyiapkan Dokumen Pendukung Feasibility Study (Studi Kelayakan) Dengan Metode Pengadaan Langsung Di E-Simpel", minutes: 120, index: 2 },
       { title: "Menyiapkan Dokumen Pendukung Feasibility Study (Studi Kelayakan) Dengan Metode Seleksi Di E-Ukpbj", minutes: 180, index: 2 },
+      { title: "Menyusun Draft Kontrak Feasibility Study (Studi Kelayakan)", minutes: 180, index: 2 },
+      { title: "Menyusun Draft Ssuk Dan Sskk Feasibility Study (Studi Kelayakan)", minutes: 120, index: 2 },
       { title: "Mengupload Dokumen Pendukung Berupa Rka, Boq, Hps, Data Dukung Hps, Kak, Rup, Nota Dinas, Ssuk, Sskk Dan Draft Kontrak", minutes: 40, index: 2 },
+      { title: "Membuat Dokumen Sppbj Setelah Munculnya Berita Acara Hasil Pemilihan", minutes: 40, index: 2 },
       { title: "Mengikuti Rapat Pra Kontrak Feasibility Study (Studi Kelayakan)", minutes: 90, index: 2 },
       { title: "Menyiapkan Absensi Rapat Pra Kontrak Feasibility Study (Studi Kelayakan)", minutes: 10, index: 1 },
       { title: "Meminjam Dan Menyiapkan Ruangan Rapat Pra Kontrak Feasibility Study (Studi Kelayakan)", minutes: 25, index: 1 },
       { title: "Menyiapkan Perangkat Berupa Komputer/Laptop Dan Sound Sistem Untuk Rapat Pra Kontrak Feasibility Study (Studi Kelayakan)", minutes: 30, index: 2 },
       { title: "Menyiapkan Konsumsi Untuk Rapat Pra Kontrak Feasibility Study (Studi Kelayakan)", minutes: 30, index: 1 },
       { title: "Menyiapkan Print Out Draft Kontrak Feasibility Study (Studi Kelayakan)", minutes: 30, index: 1 },
+      { title: "Mereview Keabsahan Dokumen Rekanan Pemenang", minutes: 60, index: 3 },
+      { title: "Melakukan Klarifikasi Ketersediaan Tenaga Ahli (Personel) Yang Sudah Ditawarkan Rekanan Pemenang", minutes: 45, index: 2 },
       { title: "Melaksanakan Rapat Pra Kontrak Feasibility Study (Studi Kelayakan)", minutes: 90, index: 2 },
+      { title: "Mengikuti Rapat Pra Kontrak Feasibility Study (Studi Kelayakan)", minutes: 90, index: 2 },
       { title: "Membuat Dokumen Kontrak/Surat Pesanan/Surat Perintah Kerja Untuk Feasibility Study (Studi Kelayakan)", minutes: 120, index: 2 },
       { title: "Membuat Dokumen Spmk Untuk Feasibility Study (Studi Kelayakan)", minutes: 40, index: 2 },
       { title: "Melakukan Serah Terima Personil Dan Lokasi Bersama Rekanan Untuk Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
@@ -712,8 +792,13 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       { title: "Menghadiri Rapat Evaluasi Feasibility Study (Studi Kelayakan)", minutes: 120, index: 2 },
       { title: "Memeriksa Kesesuaian Produk Feasibility Study (Studi Kelayakan) Berupa Gambar Rencana, Rab, Dan Spesifikasi Teknis Sebelum Disahkan Dan Diperbanyak", minutes: 150, index: 2 },
       { title: "Memverifikasi Produk Feasibility Study (Studi Kelayakan) Kepada Pptk Dan Ppk Untuk Disahkan", minutes: 60, index: 2 },
+      { title: "Menginput Dokumen Berita Acara Serah Terima Pada Spse", minutes: 15, index: 2 },
+      { title: "Menginput Bukti Pembayaran Pada Spse", minutes: 15, index: 2 },
       { title: "Melakukan Interpolasi Harga Pembangunan Fisik", minutes: 60, index: 3 },
       { title: "Menentukan Volume/Jumlah Barang Dan Jasa Yang Dibutuhkan", minutes: 120, index: 3 },
+      { title: "Menyusun Spesifikasi Teknis Yang Diinginkan Dari Barang/Jasa", minutes: 90, index: 2 },
+      { title: "Menganalisis Lingkup Kerja Jasa Serta Batas Waktu Yang Dibutuhkan", minutes: 90, index: 3 },
+      { title: "Menganalisis Kriteria 3 Penyedia Yang Kredibel, Legal Dan Memiliki Rekam Jejak Baik Untuk Menjadi Penyanding", minutes: 120, index: 3 },
       { title: "Mengumpulkan Ketiga Rab Dari 3 Penyedia", minutes: 180, index: 2 },
       { title: "Menginput Asb Untuk Pembangunan Gedung Kesehatan Di Aplikasi Siusaha Badung", minutes: 60, index: 2 },
       { title: "Menginput Satuan Harga Yang Akan Ditayangkan Pada Sipd Dengan 3 Pembanding", minutes: 45, index: 2 },
@@ -721,7 +806,10 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       { title: "Menyiapkan Dokumen Pengadaan Pembangunan Gedung Kesehatan Dengan Metode Seleksi Di E-Ukpbj", minutes: 150, index: 3 },
       { title: "Menyusun Draft Kontrak Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
       { title: "Menyusun Draft Ssuk Dan Sskk Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
+      { title: "Menyusun Boq", minutes: 240, index: 2 },
+      { title: "Menyusun Data Dukung Hps", minutes: 120, index: 3 },
       { title: "Menyusun Kak Pekerjaan", minutes: 120, index: 3 },
+      { title: "Membuat Nota Dinas", minutes: 25, index: 2 },
       { title: "Menyiapkan Gambar Rencana", minutes: 60, index: 2 },
       { title: "Menyiapkan Spesifikasi Teknis", minutes: 240, index: 3 },
       { title: "Mengupload Dokumen Pendukung Berupa Rka, Boq, Hps, Data Dukung Hps(Rab Ded), Kak, Rup, Nota Dinas, Gambar Rencana, Spesifikasi Teknis, Ssuk, Sskk Dan Draft Kontrak", minutes: 60, index: 2 },
@@ -750,13 +838,20 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       { title: "Menyiapkan Perangkat Berupa Komputer/Laptop Dan Sound Sistem Untuk Rapat Pra Kontrak Pembangunan Gedung Kesehatan", minutes: 30, index: 1 },
       { title: "Menyiapkan Konsumsi Untuk Rapat Pra Kontrak Pembangunan Gedung Kesehatan", minutes: 25, index: 1 },
       { title: "Menyiapkan Print Out Draft Kontrak Pembangunan Gedung Kesehatan", minutes: 30, index: 1 },
+      { title: "Melakukan Klarifikasi Ketersediaan Tenaga Ahli (Personel) Yang Sudah Ditawarkan Rekanan Pemenang", minutes: 45, index: 2 },
       { title: "Melaksanakan Rapat Pra Kontrak Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
       { title: "Mengikuti Rapat Pra Kontrak Pembangunan Gedung Kesehatan", minutes: 120, index: 2 },
       { title: "Membuat Dokumen Kontrak/Surat Pesanan/Surat Perintah Kerja Untuk Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
       { title: "Membuat Dokumen Spmk Untuk Pembangunan Gedung Kesehatan", minutes: 40, index: 2 },
+      { title: "Melakukan Serah Terima Personil Dan Lokasi Bersama Rekanan Untuk Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
+      { title: "Menyiapkan Absensi Rapat Evaluasi Feasibility Study (Studi Kelayakan)", minutes: 15, index: 1 },
       { title: "Meminjam Dan Menyiapkan Ruangan Rapat Evaluasi Ded", minutes: 30, index: 1 },
+      { title: "Menyiapkan Perangkat Berupa Komputer/Laptop Dan Sound Sistem Untuk Rapat Evaluasi Feasibility Study (Studi Kelayakan)", minutes: 30, index: 2 },
+      { title: "Menyiapkan Konsumsi Untuk Rapat Evaluasi Feasibility Study (Studi Kelayakan)", minutes: 40, index: 1 },
+      { title: "Melaksanakan Rapat Evaluasi Ded", minutes: 150, index: 3 },
       { title: "Membuat Notulen Rapat Evaluasi", minutes: 60, index: 1 },
       { title: "Monev Ke Lokasi Pekerjaan", minutes: 150, index: 4 },
+      { title: "Menyusun Laporan Monev/Peninjauan Progres Pekerjaan Di Lokasi", minutes: 90, index: 2 },
       { title: "Menyusun Laporan Pendampingan Pelaksaanaan Uji Material/Uji Fungsi", minutes: 90, index: 3 },
       { title: "Menyusun Berita Acara Pemeriksaan Pekerjaan", minutes: 60, index: 2 },
       { title: "Menyusun Berita Acara Serah Terima Pekerjaan", minutes: 40, index: 3 },
@@ -767,15 +862,37 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       { title: "Menyusun Datang Dukung Hps Pengawasan", minutes: 120, index: 2 },
       { title: "Menyusun Kak Pengawasan", minutes: 240, index: 3 },
       { title: "Membuat Nota Dinas Pengawasan", minutes: 30, index: 2 },
+      { title: "Mengupload Dokumen Pendukung Berupa Rka, Boq, Hps, Data Dukung Hps, Kak, Rup, Nota Dinas, Ssuk, Sskk Dan Draft Kontrak Di Aplikasi E-Simpel", minutes: 45, index: 2 },
+      { title: "Mengupload Dokumen Pendukung Berupa Rka, Boq, Hps, Data Dukung Hps, Kak, Rup, Nota Dinas, Ssuk, Sskk Dan Draft Kontrak Di Aplikasi Ukpbj", minutes: 10, index: 2 },
+      { title: "Membuat Dokumen Sppbj Setelah Munculnya Berita Acara Hasil Pemilihan Seleksi/Tender", minutes: 45, index: 3 },
       { title: "Menyiapkan Absensi Rapat Pra Kontrak Pengawasan", minutes: 15, index: 1 },
       { title: "Menyiapkan Perangkat Berupa Komputer/Laptop Dan Sound Sistem Untuk Rapat Pra Kontrak Pengawasan", minutes: 25, index: 2 },
       { title: "Menyiapkan Konsumsi Untuk Rapat Pra Kontrak Pengawasan", minutes: 30, index: 2 },
       { title: "Menyiapkan Print Out Draft Kontrak Pengawasan", minutes: 20, index: 1 },
-      { title: "Melaksanakan Rapat Pra Kontrak Pengawasan", minutes: 90, index: 2 },
+      { title: "Mereview Keabsahan Dokumen Rekanan Pemenang", minutes: 60, index: 3 },
+      { title: "Melaksanakan Rapat Pra Kontrak Pengawasan :", minutes: 90, index: 2 },
       { title: "Menyusun Berita Acara Pra Kontrak Pengawasan", minutes: 40, index: 2 },
       { title: "Membuat Dokumen Kontrak/Surat Pesanan/Surat Perintah Kerja Untuk Pengawasan", minutes: 90, index: 3 },
-      { title: "Membuat Dokumen Spmk Untuk Pengawasan", minutes: 30, index: 2 }
+      { title: "Membuat Dokumen Spmk Untuk Pengawasan", minutes: 30, index: 2 },
+      { title: "Melakukan Serah Terima Personil Dan Lokasi Bersama Rekanan Untuk Pembangunan Gedung Kesehatan", minutes: 120, index: 3 },
+      { title: "Penilain Terhadap Kinerja Penyedia Barang/Jasa Di Spse", minutes: 20, index: 2 },
+      { title: "Menginput Dokumen Berita Acara Serah Terima Pada Spse", minutes: 15, index: 2 },
+      { title: "Menginput Bukti Pembayaran Pada Spse", minutes: 15, index: 2 }
     ];
+
+    let PRESET_ACTIVITIES = JSON.parse(localStorage.getItem("ekinerja_presets_v3")) || [...DEFAULT_PRESET_ACTIVITIES];
+
+    function savePresetActivities() {
+      localStorage.setItem("ekinerja_presets_v3", JSON.stringify(PRESET_ACTIVITIES));
+    }
+
+    function resetPresetActivitiesToDefault() {
+      if (!confirm("Kembalikan daftar master aktivitas ke 304 item default dari CANDI BADUNG?")) return;
+      PRESET_ACTIVITIES = [...DEFAULT_PRESET_ACTIVITIES];
+      savePresetActivities();
+      renderAllPresetList();
+      showToast("Master aktivitas berhasil direset ke 304 item default.");
+    }
 
     // =========================================================================
     // KONFIGURASI DEFAULT SUPABASE
@@ -818,7 +935,8 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       if (!container) return;
 
       document.getElementById("totalMasterBadge").textContent = PRESET_ACTIVITIES.length;
-      document.getElementById("presetCountBtnLabel").textContent = PRESET_ACTIVITIES.length;
+      const btnLabel = document.getElementById("presetCountBtnLabel");
+      if (btnLabel) btnLabel.textContent = PRESET_ACTIVITIES.length;
 
       const keyword = (document.getElementById("presetSearchInput")?.value || "").toLowerCase().trim();
       const today = getTodayISO();
@@ -844,14 +962,24 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
                 <p class="text-xs font-semibold text-slate-800 leading-snug">
                   <span class="text-teal-700 font-bold mr-1">${item.originalIdx + 1}.</span>${item.title}
                 </p>
-                ${isFullySynced ? `<span class="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">✓ Sinkron</span>` : ''}
+                <div class="flex items-center gap-1 shrink-0">
+                  ${isFullySynced ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">✓ Sinkron</span>` : ''}
+                  <button type="button" onclick="openEditPresetModal(${item.originalIdx})" title="Edit Master Aktivitas"
+                    class="p-1 rounded-lg bg-white border border-slate-200 hover:border-teal-400 text-teal-700 text-[11px] transition">
+                    ✏️
+                  </button>
+                  <button type="button" onclick="deletePresetActivity(${item.originalIdx})" title="Hapus Master Aktivitas"
+                    class="p-1 rounded-lg bg-white border border-slate-200 hover:border-rose-400 text-rose-600 text-[11px] transition">
+                    🗑️
+                  </button>
+                </div>
               </div>
               <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
                 <span class="px-2 py-0.5 rounded bg-white border border-slate-200 text-[11px] font-medium text-slate-600">
                   ⏱ ${item.minutes} Menit
                 </span>
                 <span class="px-2 py-0.5 rounded bg-amber-50 border border-amber-200/80 text-[11px] font-semibold text-amber-800">
-                  ${item.minutes} × ${item.index} = ${poin} Poin
+                  ${item.minutes} × ${item.index} = ${formatNum(poin)} Poin
                 </span>
               </div>
             </div>
@@ -868,6 +996,61 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
           </div>
         `;
       }).join("");
+    }
+
+    // Modal Edit Master Aktivitas CANDI BADUNG
+    function openEditPresetModal(idx) {
+      const preset = PRESET_ACTIVITIES[idx];
+      if (!preset) return;
+
+      document.getElementById("editPresetIdx").value = idx;
+      document.getElementById("editPresetTitle").value = preset.title;
+      document.getElementById("editPresetMinutes").value = preset.minutes;
+      document.getElementById("editPresetIndex").value = String(preset.index);
+      updateEditPresetPreview();
+
+      document.getElementById("editPresetModal").classList.remove("hidden");
+      document.getElementById("editPresetModal").classList.add("flex");
+    }
+
+    function closeEditPresetModal() {
+      document.getElementById("editPresetModal").classList.add("hidden");
+      document.getElementById("editPresetModal").classList.remove("flex");
+    }
+
+    function updateEditPresetPreview() {
+      const mins = parseInt(document.getElementById("editPresetMinutes").value, 10) || 0;
+      const idx = parseFloat(document.getElementById("editPresetIndex").value) || 1;
+      document.getElementById("editPresetPoints").value = `${mins} × ${formatNum(idx)} = ${formatNum(mins * idx)}`;
+    }
+
+    function saveEditedPreset(e) {
+      e.preventDefault();
+      const idx = parseInt(document.getElementById("editPresetIdx").value, 10);
+      if (isNaN(idx) || !PRESET_ACTIVITIES[idx]) return;
+
+      const title = document.getElementById("editPresetTitle").value.trim();
+      const minutes = parseInt(document.getElementById("editPresetMinutes").value, 10) || 1;
+      const index = parseFloat(document.getElementById("editPresetIndex").value) || 1;
+
+      PRESET_ACTIVITIES[idx] = { title, minutes, index };
+      savePresetActivities();
+      closeEditPresetModal();
+      renderAllPresetList();
+      showToast("Master aktivitas berhasil diperbarui!");
+    }
+
+    // Hapus Master Aktivitas dari Daftar CANDI BADUNG
+    function deletePresetActivity(idx) {
+      const preset = PRESET_ACTIVITIES[idx];
+      if (!preset) return;
+
+      if (!confirm(`Hapus aktivitas "${preset.title}" dari daftar master CANDI BADUNG?`)) return;
+
+      PRESET_ACTIVITIES.splice(idx, 1);
+      savePresetActivities();
+      renderAllPresetList();
+      showToast("Aktivitas dihapus dari daftar master.");
     }
 
     function selectPresetToForm(idx) {
@@ -1414,7 +1597,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       const grouped = [];
       const seen = new Set();
 
-      // Urutkan dari yang terbaru berdasarkan tanggal lalu urutan input
       const sortedReports = [...reports].sort((a, b) => (b.report_date || "").localeCompare(a.report_date || ""));
 
       for (let i = sortedReports.length - 1; i >= 0; i--) {
