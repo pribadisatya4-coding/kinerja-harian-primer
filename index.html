@@ -35,6 +35,10 @@
           class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition">
           + Tambah Pegawai
         </button>
+        <button onclick="manualSyncNow()" id="syncNowBtn" title="Tarik data terbaru dari server"
+          class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-700 transition">
+          🔄 Sync
+        </button>
         <button onclick="openDbModal()" id="dbStatusBtn"
           class="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
           <span id="dbStatusDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
@@ -95,7 +99,7 @@
             <p class="text-xs text-slate-500">Klik <strong>✏️</strong> untuk mengedit master aktivitas, <strong>🗑️</strong> untuk menghapus, atau <strong>+ Kirim ke Semua</strong> untuk mengisi pegawai.</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <input type="text" id="presetSearchInput" oninput="renderAllPresetList()" placeholder="🔍 Cari dari 304 aktivitas..."
+            <input type="text" id="presetSearchInput" oninput="renderAllPresetList()" placeholder="🔍 Cari aktivitas..."
               class="px-3.5 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" />
             <button type="button" id="bulkInsertAllPresetsBtn" onclick="insertAllPresetActivities()"
               class="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition">
@@ -489,7 +493,7 @@
         <button onclick="closeDbModal()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
       </div>
       <p class="text-xs text-slate-600 mb-4">
-        Hubungkan aplikasi dengan Supabase agar data pegawai dan laporan tersimpan permanen lintas perangkat.
+        Hubungkan aplikasi dengan Supabase agar data pegawai dan laporan tersimpan permanen lintas perangkat. Untuk sinkron otomatis ke semua perangkat tanpa setting manual, isi <code>DEFAULT_SUPABASE_URL</code> dan <code>DEFAULT_SUPABASE_ANON_KEY</code> di dalam kode.
       </p>
 
       <div class="space-y-3 mb-5">
@@ -547,19 +551,31 @@ CREATE TABLE IF NOT EXISTS reports (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tambah kolom eselon jika tabel sudah ada sebelumnya
+-- Tabel Master Aktivitas CANDI BADUNG
+CREATE TABLE IF NOT EXISTS preset_activities (
+  id TEXT PRIMARY KEY,
+  sort_order INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  minutes INTEGER NOT NULL,
+  index_val NUMERIC(4,2) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS eselon TEXT DEFAULT 'Non-Eselon / JF / Pelaksana';
 ALTER TABLE reports ALTER COLUMN points TYPE NUMERIC(8,2);
 
--- Aktifkan RLS & Kebijakan Akses Publik
 ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE preset_activities ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public Access Employees" ON employees;
 CREATE POLICY "Public Access Employees" ON employees FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public Access Reports" ON reports;
-CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK (true);</pre>
+CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public Access Presets" ON preset_activities;
+CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) WITH CHECK (true);</pre>
       </div>
     </div>
   </div>
@@ -570,6 +586,12 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
   </div>
 
   <script>
+    // =========================================================================
+    // KONFIGURASI DEFAULT SUPABASE (ISI DI SINI AGAR OTOMATIS SINKRON DI SEMUA HP/PC)
+    // =========================================================================
+    const DEFAULT_SUPABASE_URL = "";
+    const DEFAULT_SUPABASE_ANON_KEY = "";
+
     // =========================================================================
     // MASTER DATA AKTIVITAS CANDI BADUNG (304 ITEM DARI AKTIVITAS YANKES_3.pdf)
     // =========================================================================
@@ -881,26 +903,10 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
     ];
 
     let PRESET_ACTIVITIES = JSON.parse(localStorage.getItem("ekinerja_presets_v3")) || [...DEFAULT_PRESET_ACTIVITIES];
-
-    function savePresetActivities() {
-      localStorage.setItem("ekinerja_presets_v3", JSON.stringify(PRESET_ACTIVITIES));
-    }
-
-    function resetPresetActivitiesToDefault() {
-      if (!confirm("Kembalikan daftar master aktivitas ke 304 item default dari CANDI BADUNG?")) return;
-      PRESET_ACTIVITIES = [...DEFAULT_PRESET_ACTIVITIES];
-      savePresetActivities();
-      renderAllPresetList();
-      showToast("Master aktivitas berhasil direset ke 304 item default.");
-    }
-
-    // =========================================================================
-    // KONFIGURASI DEFAULT SUPABASE
-    // =========================================================================
-    const DEFAULT_SUPABASE_URL = "";
-    const DEFAULT_SUPABASE_ANON_KEY = "";
+    let hasPresetTable = false;
 
     let supabaseClient = null;
+    let realtimeChannel = null;
     let isSupabaseConnected = false;
     let selectedEmployeeId = null;
 
@@ -914,12 +920,64 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
     let reports = [];
     let currentGroupedHistory = [];
 
+    // Helper: Ambil seluruh baris dari tabel Supabase tanpa terpotong limit 1000 baris
+    async function fetchAllRows(tableName, orderCol = "created_at") {
+      let allRows = [];
+      let from = 0;
+      const pageSize = 1000;
+
+      while (true) {
+        const { data, error } = await supabaseClient
+          .from(tableName)
+          .select("*")
+          .order(orderCol, { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        allRows = allRows.concat(data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      return allRows;
+    }
+
+    // Simpan Master Aktivitas ke LocalStorage & Supabase (jika tabel tersedia)
+    async function savePresetActivities() {
+      localStorage.setItem("ekinerja_presets_v3", JSON.stringify(PRESET_ACTIVITIES));
+      if (isSupabaseConnected && supabaseClient && hasPresetTable) {
+        try {
+          await supabaseClient.from("preset_activities").delete().neq("id", "___none___");
+          const rows = PRESET_ACTIVITIES.map((p, idx) => ({
+            id: `preset-${idx + 1}`,
+            sort_order: idx + 1,
+            title: p.title,
+            minutes: p.minutes,
+            index_val: p.index
+          }));
+          for (let i = 0; i < rows.length; i += 200) {
+            await supabaseClient.from("preset_activities").insert(rows.slice(i, i + 200));
+          }
+        } catch (err) {
+          console.warn("Preset sync skipped:", err);
+        }
+      }
+    }
+
+    async function resetPresetActivitiesToDefault() {
+      if (!confirm("Kembalikan daftar master aktivitas ke 304 item default dari CANDI BADUNG?")) return;
+      PRESET_ACTIVITIES = [...DEFAULT_PRESET_ACTIVITIES];
+      await savePresetActivities();
+      renderAllPresetList();
+      showToast("Master aktivitas berhasil direset ke 304 item default.");
+    }
+
     // Helper normalisasi teks aktivitas untuk pengecekan duplikasi akurat
     function normalizeTitle(str) {
       return (str || "").trim().toLowerCase().replace(/\s+/g, " ");
     }
 
-    // Cek apakah pegawai sudah memiliki aktivitas dengan nama yang sama pada tanggal tertentu
     function hasEmployeeActivityOnDate(empId, dateStr, titleStr) {
       const targetNorm = normalizeTitle(titleStr);
       return reports.some(r =>
@@ -1024,7 +1082,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       document.getElementById("editPresetPoints").value = `${mins} × ${formatNum(idx)} = ${formatNum(mins * idx)}`;
     }
 
-    function saveEditedPreset(e) {
+    async function saveEditedPreset(e) {
       e.preventDefault();
       const idx = parseInt(document.getElementById("editPresetIdx").value, 10);
       if (isNaN(idx) || !PRESET_ACTIVITIES[idx]) return;
@@ -1034,21 +1092,20 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       const index = parseFloat(document.getElementById("editPresetIndex").value) || 1;
 
       PRESET_ACTIVITIES[idx] = { title, minutes, index };
-      savePresetActivities();
+      await savePresetActivities();
       closeEditPresetModal();
       renderAllPresetList();
       showToast("Master aktivitas berhasil diperbarui!");
     }
 
-    // Hapus Master Aktivitas dari Daftar CANDI BADUNG
-    function deletePresetActivity(idx) {
+    async function deletePresetActivity(idx) {
       const preset = PRESET_ACTIVITIES[idx];
       if (!preset) return;
 
       if (!confirm(`Hapus aktivitas "${preset.title}" dari daftar master CANDI BADUNG?`)) return;
 
       PRESET_ACTIVITIES.splice(idx, 1);
-      savePresetActivities();
+      await savePresetActivities();
       renderAllPresetList();
       showToast("Aktivitas dihapus dari daftar master.");
     }
@@ -1124,19 +1181,16 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       }
     }
 
-    // Inisialisasi Tanggal Hari Ini
     function getTodayISO() {
       const now = new Date();
       const offset = now.getTimezoneOffset() * 60000;
       return new Date(now - offset).toISOString().split("T")[0];
     }
 
-    // Format Angka Bersih
     function formatNum(num) {
       return Number(Number(num || 0).toFixed(2)).toString();
     }
 
-    // Toast Helper
     function showToast(msg) {
       const toast = document.getElementById("toast");
       toast.textContent = msg;
@@ -1144,7 +1198,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       setTimeout(() => toast.classList.add("opacity-0"), 2800);
     }
 
-    // Navigasi View
     function hideAllViews() {
       document.getElementById("employeeListView").classList.add("hidden");
       document.getElementById("bulkInputView").classList.add("hidden");
@@ -1168,6 +1221,98 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       renderBulkRecentHistory();
     }
 
+    // Refresh UI aktif saat data berubah dari Supabase / Realtime
+    function refreshCurrentViewUI() {
+      populateDivisionFilter();
+      if (!document.getElementById("employeeListView").classList.contains("hidden")) {
+        renderEmployees();
+      }
+      if (!document.getElementById("bulkInputView").classList.contains("hidden")) {
+        renderBulkRecipients();
+        renderAllPresetList();
+        renderBulkRecentHistory();
+      }
+      if (!document.getElementById("reportDetailView").classList.contains("hidden") && selectedEmployeeId) {
+        renderReports();
+      }
+    }
+
+    // Setup Supabase Realtime Subscription agar antar perangkat langsung sinkron
+    function setupRealtimeSync() {
+      if (!supabaseClient) return;
+      if (realtimeChannel) {
+        supabaseClient.removeChannel(realtimeChannel);
+      }
+
+      realtimeChannel = supabaseClient
+        .channel("ekinerja-live-sync")
+        .on("postgres_changes", { event: "*", schema: "public", table: "employees" }, () => {
+          syncFromSupabase(true);
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "reports" }, () => {
+          syncFromSupabase(true);
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "preset_activities" }, () => {
+          syncFromSupabase(true);
+        })
+        .subscribe();
+    }
+
+    // Tarik data terbaru dari Supabase
+    async function syncFromSupabase(silent = false) {
+      if (!isSupabaseConnected || !supabaseClient) return;
+      try {
+        const [empData, repData] = await Promise.all([
+          fetchAllRows("employees", "created_at"),
+          fetchAllRows("reports", "created_at")
+        ]);
+
+        employees = empData;
+        reports = repData;
+
+        // Coba ambil preset_activities jika tabelnya sudah dibuat di Supabase
+        const { data: presetData, error: presetErr } = await supabaseClient
+          .from("preset_activities")
+          .select("*")
+          .order("sort_order", { ascending: true });
+
+        if (!presetErr && presetData) {
+          hasPresetTable = true;
+          if (presetData.length > 0) {
+            PRESET_ACTIVITIES = presetData.map(p => ({
+              title: p.title,
+              minutes: Number(p.minutes),
+              index: Number(p.index_val)
+            }));
+            localStorage.setItem("ekinerja_presets_v3", JSON.stringify(PRESET_ACTIVITIES));
+          } else {
+            await savePresetActivities();
+          }
+        }
+
+        saveLocalData();
+        refreshCurrentViewUI();
+        if (!silent) showToast("Data berhasil disinkronkan dengan server!");
+      } catch (err) {
+        console.error("Sync error:", err);
+        if (!silent) showToast("Gagal sinkronisasi: " + err.message);
+      }
+    }
+
+    async function manualSyncNow() {
+      const btn = document.getElementById("syncNowBtn");
+      btn.disabled = true;
+      btn.textContent = "⏳ Syncing...";
+      if (isSupabaseConnected && supabaseClient) {
+        await syncFromSupabase(false);
+      } else {
+        await initDatabase();
+        showToast("Memuat ulang data lokal (Hubungkan Supabase untuk sinkron antar perangkat).");
+      }
+      btn.disabled = false;
+      btn.textContent = "🔄 Sync";
+    }
+
     // Inisialisasi Koneksi Supabase
     async function initDatabase() {
       const savedUrl = localStorage.getItem("ekinerja_sb_url") || DEFAULT_SUPABASE_URL;
@@ -1179,11 +1324,8 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       if (savedUrl && savedKey && window.supabase) {
         try {
           supabaseClient = window.supabase.createClient(savedUrl, savedKey);
-          const { data: empData, error: empErr } = await supabaseClient.from("employees").select("*").order("created_at", { ascending: true });
-          if (empErr) throw empErr;
-
-          const { data: repData, error: repErr } = await supabaseClient.from("reports").select("*").order("created_at", { ascending: true });
-          if (repErr) throw repErr;
+          const empData = await fetchAllRows("employees", "created_at");
+          const repData = await fetchAllRows("reports", "created_at");
 
           isSupabaseConnected = true;
           updateDbBadge(true);
@@ -1195,8 +1337,30 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
             employees = empData;
           }
           reports = repData || [];
-          populateDivisionFilter();
-          renderEmployees();
+
+          // Cek tabel preset_activities
+          const { data: presetData, error: presetErr } = await supabaseClient
+            .from("preset_activities")
+            .select("*")
+            .order("sort_order", { ascending: true });
+
+          if (!presetErr && presetData) {
+            hasPresetTable = true;
+            if (presetData.length > 0) {
+              PRESET_ACTIVITIES = presetData.map(p => ({
+                title: p.title,
+                minutes: Number(p.minutes),
+                index: Number(p.index_val)
+              }));
+              localStorage.setItem("ekinerja_presets_v3", JSON.stringify(PRESET_ACTIVITIES));
+            } else {
+              await savePresetActivities();
+            }
+          }
+
+          saveLocalData();
+          setupRealtimeSync();
+          refreshCurrentViewUI();
           return;
         } catch (err) {
           console.error("Supabase connection error:", err);
@@ -1210,8 +1374,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       employees = JSON.parse(localStorage.getItem("ekinerja_employees")) || [...defaultEmployees];
       reports = JSON.parse(localStorage.getItem("ekinerja_reports")) || [];
       saveLocalData();
-      populateDivisionFilter();
-      renderEmployees();
+      refreshCurrentViewUI();
     }
 
     function updateDbBadge(connected) {
@@ -1231,9 +1394,9 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       localStorage.setItem("ekinerja_reports", JSON.stringify(reports));
     }
 
-    // Filter Divisi
     function populateDivisionFilter() {
       const select = document.getElementById("divisionFilter");
+      if (!select) return;
       const currentVal = select.value;
       const divisions = [...new Set(employees.map(e => e.division))];
       select.innerHTML = `<option value="">Semua Bidang / Divisi</option>` +
@@ -1376,6 +1539,7 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
     // =========================================================================
     function renderBulkRecipients() {
       const container = document.getElementById("bulkRecipientList");
+      if (!container) return;
       container.innerHTML = employees.map(emp => `
         <label class="flex items-center justify-between py-2.5 cursor-pointer hover:bg-slate-50">
           <div class="flex items-center gap-2.5">
@@ -1426,20 +1590,24 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
     }
 
+    // Simpan ke Supabase secara bertahap (chunk 200 baris) agar aman untuk ratusan/ribuan data
     async function saveBatchToStorage(newBatchReports) {
       if (isSupabaseConnected && supabaseClient) {
-        const { error } = await supabaseClient.from("reports").insert(newBatchReports);
-        if (error) {
-          const fallbackBatch = newBatchReports.map(({ eselon, ...rest }) => rest);
-          const { error: retryErr } = await supabaseClient.from("reports").insert(fallbackBatch);
-          if (retryErr) throw retryErr;
+        const chunkSize = 200;
+        for (let i = 0; i < newBatchReports.length; i += chunkSize) {
+          const chunk = newBatchReports.slice(i, i + chunkSize);
+          const { error } = await supabaseClient.from("reports").insert(chunk);
+          if (error) {
+            const fallbackChunk = chunk.map(({ eselon, ...rest }) => rest);
+            const { error: retryErr } = await supabaseClient.from("reports").insert(fallbackChunk);
+            if (retryErr) throw retryErr;
+          }
         }
       }
       reports.push(...newBatchReports);
       saveLocalData();
     }
 
-    // Simpan 1 Aktivitas dari Form ke Pegawai Terpilih yang BELUM Punya Aktivitas Ini
     async function addBulkActivity(e) {
       e.preventDefault();
       const selectedIds = Array.from(document.querySelectorAll(".bulk-emp-checkbox:checked")).map(cb => cb.value);
@@ -1516,7 +1684,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       }
     }
 
-    // Masukkan Semua Template CANDI BADUNG Sekaligus (HANYA YANG BELUM TERISI)
     async function insertAllPresetActivities() {
       const selectedIds = Array.from(document.querySelectorAll(".bulk-emp-checkbox:checked")).map(cb => cb.value);
       if (selectedIds.length === 0) {
@@ -1589,9 +1756,9 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       }
     }
 
-    // Render Daftar Kinerja Harian Tercatat dengan Tombol Edit & Hapus
     function renderBulkRecentHistory() {
       const container = document.getElementById("bulkRecentHistory");
+      if (!container) return;
       const keyword = (document.getElementById("manageHistorySearch")?.value || "").toLowerCase().trim();
 
       const grouped = [];
@@ -1651,7 +1818,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       `).join("");
     }
 
-    // Modal Edit Kinerja Harian Massal
     function openEditBulkReportModal(groupIdx) {
       const item = currentGroupedHistory[groupIdx];
       if (!item) return;
@@ -1722,13 +1888,16 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
           eselon: newEselon,
           output: `1 Kegiatan (${newEselon})`
         };
-        const { error } = await supabaseClient.from("reports").update(updatePayload).in("id", targetIds);
-        if (error) {
-          const { eselon, ...fallbackPayload } = updatePayload;
-          const { error: retryErr } = await supabaseClient.from("reports").update(fallbackPayload).in("id", targetIds);
-          if (retryErr) {
-            showToast("Gagal memperbarui data: " + retryErr.message);
-            return;
+        for (let i = 0; i < targetIds.length; i += 200) {
+          const idChunk = targetIds.slice(i, i + 200);
+          const { error } = await supabaseClient.from("reports").update(updatePayload).in("id", idChunk);
+          if (error) {
+            const { eselon, ...fallbackPayload } = updatePayload;
+            const { error: retryErr } = await supabaseClient.from("reports").update(fallbackPayload).in("id", idChunk);
+            if (retryErr) {
+              showToast("Gagal memperbarui data: " + retryErr.message);
+              return;
+            }
           }
         }
       }
@@ -1755,7 +1924,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       showToast(`Berhasil memperbarui kinerja untuk ${targetIds.length} pegawai!`);
     }
 
-    // Hapus Kinerja Harian dari Dashboard Input Massal
     async function deleteBulkReportGroup(groupIdx) {
       const item = currentGroupedHistory[groupIdx];
       if (!item) return;
@@ -1766,10 +1934,13 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       const targetIds = item.ids;
 
       if (isSupabaseConnected && supabaseClient) {
-        const { error } = await supabaseClient.from("reports").delete().in("id", targetIds);
-        if (error) {
-          showToast("Gagal menghapus dari database: " + error.message);
-          return;
+        for (let i = 0; i < targetIds.length; i += 200) {
+          const idChunk = targetIds.slice(i, i + 200);
+          const { error } = await supabaseClient.from("reports").delete().in("id", idChunk);
+          if (error) {
+            showToast("Gagal menghapus dari database: " + error.message);
+            return;
+          }
         }
       }
 
@@ -1921,7 +2092,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       }).join("");
     }
 
-    // Salin Hanya Kata-Kata Uraian Kegiatan
     function copyActivityTextOnly(repId) {
       const item = reports.find(r => r.id === repId);
       if (!item) return;
@@ -1930,7 +2100,6 @@ CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK
       showToast("Teks uraian kegiatan berhasil disalin!");
     }
 
-    // Salin Satu Kegiatan Lengkap
     function copySingleActivity(repId) {
       const item = reports.find(r => r.id === repId);
       const emp = employees.find(e => e.id === selectedEmployeeId);
@@ -1952,7 +2121,6 @@ Poin: ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin`;
       showToast("Detail kegiatan berhasil disalin!");
     }
 
-    // Salin Rekap Keseluruhan
     function copyAllRecap() {
       const emp = employees.find(e => e.id === selectedEmployeeId);
       const selectedDate = document.getElementById("reportDate").value;
@@ -2075,6 +2243,13 @@ ${lines}
       navigator.clipboard.writeText(sql);
       showToast("Skrip SQL berhasil disalin!");
     }
+
+    // Otomatis tarik pembaruan saat tab browser kembali aktif di HP/Laptop lain
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && isSupabaseConnected) {
+        syncFromSupabase(true);
+      }
+    });
 
     // Start App
     renderAllPresetList();
