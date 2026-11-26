@@ -232,7 +232,7 @@
           ← Kembali ke Daftar Pegawai
         </button>
         <div class="flex flex-wrap items-center gap-2">
-          <label for="reportDate" class="text-xs sm:text-sm font-medium text-slate-600">Filter Tanggal:</label>
+          <label for="reportDate" class="text-xs sm:text-sm font-medium text-slate-600">Filter Tanggal Rekap:</label>
           <input type="date" id="reportDate" onchange="onEmployeeDateFilterChange()"
             class="px-3 py-1.5 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500" />
           <button type="button" id="todayDateFilterBtn" onclick="setTodayDateFilter()"
@@ -283,162 +283,152 @@
         </div>
       </div>
 
-      <!-- MENU INPUT KINERJA HARIAN SATU PER SATU & DESKRIPSI PER TANGGAL -->
+      <!-- BARIS 1: INPUT KINERJA HARIAN (KIRI) & KINERJA TERSIMPAN PADA TANGGAL TERPILIH (KANAN) -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-        <!-- Kolom Kiri (7 Kolom): Input Kinerja Harian Pegawai (Satu per Satu) -->
-        <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <div class="flex items-center justify-between gap-2 pb-3 mb-4 border-b border-slate-100">
-            <div>
-              <h3 class="text-base font-bold text-slate-900">➕ Input Kinerja Harian Pegawai</h3>
-              <p class="text-xs text-slate-500">Tambahkan aktivitas kinerja satu per satu sesuai tanggal untuk pegawai ini.</p>
+        <!-- Kolom Kiri (6 Kolom): Input Kinerja Harian Ringkas -->
+        <div class="lg:col-span-6 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-2 pb-3 mb-4 border-b border-slate-100">
+              <div>
+                <h3 class="text-base font-bold text-slate-900">➕ Input Kinerja Harian</h3>
+                <p class="text-xs text-slate-500">Pilih tanggal, cari master aktivitas, dan simpan uraian kinerja harian.</p>
+              </div>
             </div>
-            <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">
-              Input Individual
+
+            <form onsubmit="addSingleEmployeeActivity(event)" class="space-y-4">
+              <!-- 1. Tanggal yang dipilih -->
+              <div>
+                <label for="empSingleDate" class="block text-xs font-semibold text-slate-700 mb-1">Tanggal yang Dipilih</label>
+                <input type="date" id="empSingleDate" onchange="onEmpSingleDateChange()" required
+                  class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none" />
+              </div>
+
+              <!-- 2. Modul Pencarian + Pilih Cepat Master Aktivitas -->
+              <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <label for="empPresetSearchInput" class="block text-xs font-semibold text-slate-700">
+                    Pilih Cepat Master Aktivitas
+                  </label>
+                  <span id="empPresetMatchCount" class="text-[11px] font-semibold text-teal-700">304 aktivitas</span>
+                </div>
+
+                <!-- Modul Pencarian Master Aktivitas -->
+                <div class="relative">
+                  <input type="text" id="empPresetSearchInput" oninput="filterEmpPresetQuickSelect()"
+                    placeholder="🔍 Ketik kata kunci untuk mencari master aktivitas..."
+                    class="w-full px-3.5 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none" />
+                </div>
+
+                <!-- Dropdown Hasil Pencarian Master Aktivitas -->
+                <select id="empPresetQuickSelect" onchange="applyPresetToSingleForm()"
+                  class="w-full px-3 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+                  <option value="">-- Pilih dari Master Aktivitas CANDI BADUNG --</option>
+                </select>
+              </div>
+
+              <!-- 3. Uraian Kinerja Harian -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label for="empSingleTitle" class="block text-xs font-semibold text-slate-700">Uraian Kinerja Harian</label>
+                  <span id="empSelectedPresetMeta" class="text-[11px] text-teal-700 font-medium"></span>
+                </div>
+                <textarea id="empSingleTitle" rows="3" required
+                  placeholder="Uraian kinerja harian akan terisi otomatis saat memilih master aktivitas, atau ketik manual di sini..."
+                  class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"></textarea>
+              </div>
+
+              <button type="submit" id="empSingleSubmitBtn"
+                class="w-full py-2.5 px-4 rounded-xl text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition">
+                + Simpan Kinerja Harian
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Kolom Kanan (6 Kolom): Kinerja Harian yang Sudah Disimpan pada Tanggal Terpilih -->
+        <div class="lg:col-span-6 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100">
+              <div>
+                <h3 class="text-base font-bold text-slate-900">
+                  📋 Kinerja Tersimpan Tanggal <span id="savedDateHeadingLabel" class="text-teal-700">-</span>
+                </h3>
+                <p class="text-xs text-slate-500">Daftar kinerja harian yang sudah tersimpan pada tanggal yang dipilih.</p>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span id="savedDateCountBadge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                  0 Item
+                </span>
+                <button type="button" onclick="copySavedDateActivities()"
+                  class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
+                  📝 Salin Semua
+                </button>
+              </div>
+            </div>
+
+            <!-- Daftar Item Tersimpan pada Tanggal Dipilih -->
+            <div id="savedDateActivitiesContainer" class="space-y-2.5 max-h-[360px] overflow-y-auto pr-1"></div>
+          </div>
+
+          <div id="savedDateSummaryFooter" class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+            <span>Total Waktu: <strong id="savedDateTotalMinutes" class="text-slate-800">0 Menit</strong></span>
+            <span>Total Poin: <strong id="savedDateTotalPoints" class="text-teal-700">0 Poin</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BARIS 2: MENU DESKRIPSI KINERJA PER TANGGAL -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100">
+          <div>
+            <h3 class="text-base font-bold text-slate-900">📝 Deskripsi Kinerja Harian per Tanggal</h3>
+            <p class="text-xs text-slate-500">Isi, edit, simpan, dan salin deskripsi ringkasan kinerja harian pada tanggal yang dipilih.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="date" id="empDescDate" onchange="onEmpDescDateChange()"
+              class="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <span id="descStatusBadge" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">
+              Belum Diisi
             </span>
           </div>
+        </div>
 
-          <form onsubmit="addSingleEmployeeActivity(event)" class="space-y-3.5">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Kinerja</label>
-                <input type="date" id="empSingleDate" onchange="onEmpSingleDateChange()" required
-                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none" />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Eselon / Jabatan</label>
-                <select id="empSingleEselon" required
-                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none">
-                  <option value="Non-Eselon / JF / Pelaksana">Non-Eselon / JF / Pelaksana</option>
-                  <option value="Eselon IV">Eselon IV</option>
-                  <option value="Eselon III">Eselon III</option>
-                  <option value="Eselon II">Eselon II</option>
-                </select>
-              </div>
-            </div>
+        <div class="mb-3">
+          <textarea id="empDailyDescription" rows="3"
+            placeholder="Tuliskan deskripsi ringkasan pelaksanaan tugas harian pada tanggal ini..."
+            class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+        </div>
 
-            <!-- Pilih Cepat dari Master CANDI BADUNG -->
-            <div>
-              <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Cepat Master Aktivitas (Opsional)</label>
-              <select id="empPresetQuickSelect" onchange="applyPresetToSingleForm()"
-                class="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none">
-                <option value="">-- Pilih dari 304 Master Aktivitas CANDI BADUNG atau ketik manual di bawah --</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-700 mb-1">Uraian Kinerja Harian</label>
-              <textarea id="empSingleTitle" rows="2" required
-                placeholder="Ketik uraian kegiatan kinerja harian yang dilaksanakan..."
-                class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"></textarea>
-            </div>
-
-            <div class="grid grid-cols-3 gap-3">
-              <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Waktu (Menit)</label>
-                <input type="number" id="empSingleMinutes" min="1" max="1440" value="30" oninput="updateEmpSingleCalculation()" required
-                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none" />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Indeks</label>
-                <select id="empSingleIndex" onchange="updateEmpSingleCalculation()" required
-                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none">
-                  <option value="1">1</option>
-                  <option value="1.25">1.25</option>
-                  <option value="1.5">1.5</option>
-                  <option value="1.75">1.75</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Poin Otomatis</label>
-                <input type="text" id="empSinglePoints" readonly value="30 × 1 = 30"
-                  class="w-full px-3 py-2 text-xs sm:text-sm font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded-xl outline-none" />
-              </div>
-            </div>
-
-            <button type="submit" id="empSingleSubmitBtn"
-              class="w-full py-2.5 px-4 rounded-xl text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition">
-              + Simpan Kinerja Harian
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div id="savedDescriptionsChips" class="flex flex-wrap items-center gap-1.5"></div>
+          <div class="flex flex-wrap items-center gap-2 ml-auto">
+            <button type="button" onclick="saveEmployeeDailyDescription()"
+              class="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition">
+              💾 Simpan Deskripsi
             </button>
-          </form>
-        </div>
-
-        <!-- Kolom Kanan (5 Kolom): Menu Deskripsi Kinerja Harian per Tanggal -->
-        <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100">
-              <div>
-                <h3 class="text-base font-bold text-slate-900">📝 Deskripsi Kinerja per Tanggal</h3>
-                <p class="text-xs text-slate-500">Isi, edit, simpan, dan salin deskripsi kinerja harian pada tanggal dipilih.</p>
-              </div>
-              <span id="descStatusBadge" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">
-                Belum Diisi
-              </span>
-            </div>
-
-            <div class="mb-3">
-              <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Deskripsi</label>
-              <input type="date" id="empDescDate" onchange="loadEmployeeDescriptionForDate()"
-                class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-            </div>
-
-            <div class="mb-3">
-              <div class="flex items-center justify-between mb-1">
-                <label for="empDailyDescription" class="block text-xs font-semibold text-slate-700">Isi Deskripsi / Ringkasan Harian</label>
-                <span id="descUpdatedAtText" class="text-[11px] text-slate-400"></span>
-              </div>
-              <textarea id="empDailyDescription" rows="5"
-                placeholder="Tuliskan deskripsi ringkasan pelaksanaan tugas harian pada tanggal ini..."
-                class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
-            </div>
-          </div>
-
-          <div class="space-y-2 pt-2 border-t border-slate-100">
-            <div class="grid grid-cols-2 gap-2">
-              <button type="button" onclick="saveEmployeeDailyDescription()"
-                class="py-2 px-3 rounded-xl text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition">
-                💾 Simpan Deskripsi
-              </button>
-              <button type="button" onclick="focusEditDescription()"
-                class="py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition">
-                ✏️ Edit Deskripsi
-              </button>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <button type="button" onclick="copyEmployeeDailyDescription()"
-                class="py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 transition">
-                📋 Salin Deskripsi
-              </button>
-              <button type="button" onclick="copyAllDailyActivitiesOnly()"
-                class="py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
-                📝 Salin Kinerja Tanggal Ini
-              </button>
-            </div>
+            <button type="button" onclick="focusEditDescription()"
+              class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition">
+              ✏️ Edit Deskripsi
+            </button>
+            <button type="button" onclick="copyEmployeeDailyDescription()"
+              class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 transition">
+              📋 Salin Deskripsi
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- Riwayat Tanggal yang Memiliki Deskripsi Tersimpan -->
-      <div id="savedDescriptionsBanner" class="hidden bg-indigo-50/60 border border-indigo-200/80 rounded-2xl p-4 mb-6">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <span class="text-xs font-bold text-indigo-900">📌 Tanggal dengan Deskripsi Tersimpan (Klik tanggal untuk membuka/edit):</span>
-        </div>
-        <div id="savedDescriptionsChips" class="flex flex-wrap gap-2"></div>
-      </div>
-
-      <!-- Daftar Kegiatan Semua Tanggal + Pencarian Aktivitas -->
+      <!-- BARIS 3: DAFTAR SELURUH KINERJA HARIAN TERCATAT -->
       <div>
         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 class="text-base font-bold text-slate-800">Daftar Kinerja Harian Tercatat</h3>
-            <p class="text-xs text-slate-500">Gunakan tombol <strong>Edit</strong> untuk mengubah, <strong>Salin Kinerja Harian</strong> untuk menyalin uraian, atau <strong>Salin Detail</strong>.</p>
+            <h3 class="text-base font-bold text-slate-800">Riwayat Seluruh Kinerja Harian Tercatat</h3>
+            <p class="text-xs text-slate-500">Menampilkan riwayat kinerja sesuai filter tanggal di atas (default semua tanggal).</p>
           </div>
           <div class="flex flex-wrap items-center gap-2.5">
             <div class="relative flex-1 sm:w-72">
               <input type="text" id="activitySearchInput" oninput="renderReports()"
-                placeholder="🔍 Cari kinerja harian..."
+                placeholder="🔍 Cari riwayat kinerja..."
                 class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" />
             </div>
             <button onclick="copyAllDailyActivitiesOnly()" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-xs font-semibold text-teal-700 transition">
@@ -1140,6 +1130,9 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     let isSupabaseConnected = false;
     let selectedEmployeeId = null;
 
+    // Menyimpan durasi & indeks terpilih dari master aktivitas pada form pegawai
+    let selectedSinglePresetMeta = { minutes: 30, index: 1 };
+
     const defaultEmployees = [
       { id: "emp-1", name: "I Made Wijaya, S.KM", nip: "198805142014031001", role: "Administrator Kesehatan", division: "Pelayanan Kesehatan Primer", avatar_url: "" },
       { id: "emp-2", name: "Ni Luh Putu Sari, A.Md.Keb", nip: "199208212019032004", role: "Pengelola Program Primer", division: "Pelayanan Kesehatan Primer", avatar_url: "" },
@@ -1228,7 +1221,6 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       }
     }
 
-    // Helper: Ambil seluruh baris dari tabel Supabase tanpa terpotong limit 1000 baris
     async function fetchAllRows(tableName, orderCol = "created_at") {
       let allRows = [];
       let from = 0;
@@ -1558,6 +1550,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
         renderBulkRecentHistory();
       }
       if (!document.getElementById("reportDetailView").classList.contains("hidden") && selectedEmployeeId) {
+        renderSavedDateActivities();
         renderReports();
         loadEmployeeDescriptionForDate();
         renderSavedDescriptionsChips();
@@ -1602,7 +1595,6 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
         }));
         reports = repData;
 
-        // Sync daily_descriptions jika tabel tersedia
         const { data: descData, error: descErr } = await supabaseClient
           .from("daily_descriptions")
           .select("*");
@@ -1840,7 +1832,6 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       showToast(`Pegawai "${emp.name}" berhasil dihapus.`);
     }
 
-    // Render Daftar Pegawai dengan Logo / Foto
     function renderEmployees() {
       const query = document.getElementById("searchInput").value.toLowerCase();
       const divFilter = document.getElementById("divisionFilter").value;
@@ -2317,34 +2308,55 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     }
 
     // =========================================================================
-    // HALAMAN DETAIL LAPORAN PEGAWAI (INPUT SATU PER SATU, DESKRIPSI, EDIT & SALIN)
+    // HALAMAN DETAIL LAPORAN PEGAWAI (INPUT RINGKAS, PENCARIAN MASTER, & PANEL KINERJA TANGGAL)
     // =========================================================================
-    function populateEmpPresetQuickSelect() {
+    function filterEmpPresetQuickSelect() {
       const select = document.getElementById("empPresetQuickSelect");
+      const countLabel = document.getElementById("empPresetMatchCount");
       if (!select) return;
-      select.innerHTML = `<option value="">-- Pilih dari ${PRESET_ACTIVITIES.length} Master Aktivitas CANDI BADUNG atau ketik manual di bawah --</option>` +
-        PRESET_ACTIVITIES.map((p, idx) =>
-          `<option value="${idx}">${idx + 1}. ${p.title} (${p.minutes} mnt × ${p.index} = ${formatNum(p.minutes * p.index)} Poin)</option>`
+
+      const keyword = (document.getElementById("empPresetSearchInput")?.value || "").toLowerCase().trim();
+      const matched = PRESET_ACTIVITIES
+        .map((p, idx) => ({ ...p, originalIdx: idx }))
+        .filter(p => p.title.toLowerCase().includes(keyword));
+
+      if (countLabel) {
+        countLabel.textContent = `${matched.length} aktivitas ditemukan`;
+      }
+
+      if (matched.length === 0) {
+        select.innerHTML = `<option value="">-- Tidak ada aktivitas cocok dengan "${keyword}" --</option>`;
+        return;
+      }
+
+      select.innerHTML = `<option value="">-- Pilih dari ${matched.length} Master Aktivitas --</option>` +
+        matched.map(p =>
+          `<option value="${p.originalIdx}">${p.originalIdx + 1}. ${p.title} (${p.minutes} mnt • ${formatNum(p.minutes * p.index)} Poin)</option>`
         ).join("");
     }
 
     function applyPresetToSingleForm() {
       const idx = document.getElementById("empPresetQuickSelect").value;
-      if (idx === "") return;
+      const metaEl = document.getElementById("empSelectedPresetMeta");
+
+      if (idx === "") {
+        selectedSinglePresetMeta = { minutes: 30, index: 1 };
+        if (metaEl) metaEl.textContent = "";
+        return;
+      }
+
       const preset = PRESET_ACTIVITIES[Number(idx)];
       if (!preset) return;
 
       document.getElementById("empSingleTitle").value = preset.title;
-      document.getElementById("empSingleMinutes").value = preset.minutes;
-      document.getElementById("empSingleIndex").value = String(preset.index);
-      updateEmpSingleCalculation();
-    }
+      selectedSinglePresetMeta = {
+        minutes: Number(preset.minutes) || 30,
+        index: Number(preset.index) || 1
+      };
 
-    function updateEmpSingleCalculation() {
-      const mins = parseInt(document.getElementById("empSingleMinutes").value, 10) || 0;
-      const idx = parseFloat(document.getElementById("empSingleIndex").value) || 1;
-      const pts = mins * idx;
-      document.getElementById("empSinglePoints").value = `${mins} × ${formatNum(idx)} = ${formatNum(pts)}`;
+      if (metaEl) {
+        metaEl.textContent = `Standar: ${selectedSinglePresetMeta.minutes} mnt × ${formatNum(selectedSinglePresetMeta.index)} = ${formatNum(selectedSinglePresetMeta.minutes * selectedSinglePresetMeta.index)} Poin`;
+      }
     }
 
     function openEmployeeReport(empId) {
@@ -2358,16 +2370,16 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       document.getElementById("selectedName").textContent = emp.name;
       document.getElementById("selectedMeta").textContent = `NIP: ${emp.nip} • ${emp.role} • ${emp.division}`;
 
-      // Set default tanggal pada form input individual & deskripsi ke hari ini
+      // Reset form input individual ringkas
       document.getElementById("empSingleDate").value = today;
       document.getElementById("empDescDate").value = today;
+      document.getElementById("empPresetSearchInput").value = "";
       document.getElementById("empSingleTitle").value = "";
-      document.getElementById("empSingleMinutes").value = 30;
-      document.getElementById("empSingleIndex").value = "1";
-      updateEmpSingleCalculation();
-      populateEmpPresetQuickSelect();
+      document.getElementById("empSelectedPresetMeta").textContent = "";
+      selectedSinglePresetMeta = { minutes: 30, index: 1 };
+      filterEmpPresetQuickSelect();
 
-      // Default tampilan daftar menampilkan semua tanggal (bisa difilter per tanggal)
+      // Filter rekap bawah default semua tanggal
       document.getElementById("reportDate").value = "";
       document.getElementById("activitySearchInput").value = "";
 
@@ -2375,6 +2387,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       setHeaderMenuVisibility(false);
       document.getElementById("reportDetailView").classList.remove("hidden");
 
+      renderSavedDateActivities();
       loadEmployeeDescriptionForDate();
       renderSavedDescriptionsChips();
       renderReports();
@@ -2385,6 +2398,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       if (filterDate) {
         document.getElementById("empSingleDate").value = filterDate;
         document.getElementById("empDescDate").value = filterDate;
+        renderSavedDateActivities();
         loadEmployeeDescriptionForDate();
       }
       renderReports();
@@ -2394,6 +2408,16 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       const singleDate = document.getElementById("empSingleDate").value;
       if (singleDate) {
         document.getElementById("empDescDate").value = singleDate;
+        renderSavedDateActivities();
+        loadEmployeeDescriptionForDate();
+      }
+    }
+
+    function onEmpDescDateChange() {
+      const descDate = document.getElementById("empDescDate").value;
+      if (descDate) {
+        document.getElementById("empSingleDate").value = descDate;
+        renderSavedDateActivities();
         loadEmployeeDescriptionForDate();
       }
     }
@@ -2403,6 +2427,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       document.getElementById("reportDate").value = today;
       document.getElementById("empSingleDate").value = today;
       document.getElementById("empDescDate").value = today;
+      renderSavedDateActivities();
       loadEmployeeDescriptionForDate();
       renderReports();
     }
@@ -2412,25 +2437,24 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       renderReports();
     }
 
-    // Input Kinerja Harian Satu per Satu untuk Pegawai Terpilih
+    // Simpan Kinerja Harian Pegawai (Input Ringkas: Tanggal + Master/Uraian)
     async function addSingleEmployeeActivity(e) {
       e.preventDefault();
       if (!selectedEmployeeId) return;
 
       const reportDate = document.getElementById("empSingleDate").value || getTodayISO();
-      const eselon = document.getElementById("empSingleEselon").value;
       const title = document.getElementById("empSingleTitle").value.trim();
-      const durationMinutes = parseInt(document.getElementById("empSingleMinutes").value, 10) || 0;
-      const indexVal = parseFloat(document.getElementById("empSingleIndex").value) || 1;
 
       if (!title) {
         showToast("Uraian kinerja harian wajib diisi!");
         return;
       }
-      if (durationMinutes <= 0) {
-        showToast("Waktu (Menit) harus lebih dari 0!");
-        return;
-      }
+
+      // Gunakan standar waktu & indeks dari master aktivitas yang dipilih (atau cocokkan jika judul sama persis)
+      const matchedMaster = PRESET_ACTIVITIES.find(p => normalizeTitle(p.title) === normalizeTitle(title));
+      const durationMinutes = matchedMaster ? Number(matchedMaster.minutes) : selectedSinglePresetMeta.minutes;
+      const indexVal = matchedMaster ? Number(matchedMaster.index) : selectedSinglePresetMeta.index;
+      const eselon = "Non-Eselon / JF / Pelaksana";
 
       const existingEmpReports = reports.filter(r => r.employee_id === selectedEmployeeId && r.report_date === reportDate);
       const startTime = existingEmpReports.length > 0
@@ -2462,14 +2486,103 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
         await saveBatchToStorage([newReport]);
         document.getElementById("empSingleTitle").value = "";
         document.getElementById("empPresetQuickSelect").value = "";
+        document.getElementById("empSelectedPresetMeta").textContent = "";
+        selectedSinglePresetMeta = { minutes: 30, index: 1 };
+
+        renderSavedDateActivities();
         renderReports();
-        showToast(`Kinerja harian pada tanggal ${reportDate} berhasil disimpan!`);
+        showToast(`Kinerja harian tanggal ${reportDate} berhasil disimpan!`);
       } catch (err) {
         showToast("Gagal menyimpan kinerja: " + err.message);
       } finally {
         btn.disabled = false;
         btn.textContent = "+ Simpan Kinerja Harian";
       }
+    }
+
+    // =========================================================================
+    // PANEL KANAN: KINERJA HARIAN YANG SUDAH DISIMPAN PADA TANGGAL TERPILIH
+    // =========================================================================
+    function renderSavedDateActivities() {
+      if (!selectedEmployeeId) return;
+      const targetDate = document.getElementById("empSingleDate").value || getTodayISO();
+
+      const headingLabel = document.getElementById("savedDateHeadingLabel");
+      const countBadge = document.getElementById("savedDateCountBadge");
+      const container = document.getElementById("savedDateActivitiesContainer");
+      const totalMinsEl = document.getElementById("savedDateTotalMinutes");
+      const totalPtsEl = document.getElementById("savedDateTotalPoints");
+
+      if (headingLabel) headingLabel.textContent = targetDate;
+
+      const itemsOnDate = reports.filter(r => r.employee_id === selectedEmployeeId && r.report_date === targetDate);
+      const totalMins = itemsOnDate.reduce((sum, r) => sum + Number(r.duration_minutes || 0), 0);
+      const totalPts = itemsOnDate.reduce((sum, r) => sum + (Number(r.duration_minutes || 0) * Number(r.index_val || 1)), 0);
+
+      if (countBadge) countBadge.textContent = `${itemsOnDate.length} Item`;
+      if (totalMinsEl) totalMinsEl.textContent = formatDuration(totalMins);
+      if (totalPtsEl) totalPtsEl.textContent = `${formatNum(totalPts)} Poin`;
+
+      if (!container) return;
+
+      if (itemsOnDate.length === 0) {
+        container.innerHTML = `
+          <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-6 text-center text-xs text-slate-500">
+            Belum ada kinerja harian yang disimpan pada tanggal <strong>${targetDate}</strong>.<br/>
+            Silakan pilih atau ketik uraian kinerja di sebelah kiri lalu klik <strong>Simpan Kinerja Harian</strong>.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = itemsOnDate.map((item, idx) => {
+        const mins = Number(item.duration_minutes || 0);
+        const idxVal = Number(item.index_val || 1);
+        const pts = mins * idxVal;
+
+        return `
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 hover:border-teal-300 transition">
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-xs sm:text-sm font-medium text-slate-800 leading-snug">
+                <span class="font-bold text-teal-700 mr-1">${idx + 1}.</span>${item.title}
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-200/70">
+              <span class="text-[11px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/70">
+                ${mins} mnt × ${formatNum(idxVal)} = ${formatNum(pts)} Poin
+              </span>
+              <div class="flex items-center gap-1">
+                <button type="button" onclick="openEditSingleActivityModal('${item.id}')" title="Edit Kinerja"
+                  class="px-2 py-1 rounded-lg text-[11px] font-semibold bg-white border border-slate-200 hover:border-amber-400 text-amber-800 transition">
+                  ✏️ Edit
+                </button>
+                <button type="button" onclick="copyActivityTextOnly('${item.id}')" title="Salin Uraian Kinerja"
+                  class="px-2 py-1 rounded-lg text-[11px] font-semibold bg-white border border-slate-200 hover:border-teal-400 text-teal-700 transition">
+                  📝 Salin
+                </button>
+                <button type="button" onclick="deleteActivity('${item.id}')" title="Hapus Kinerja"
+                  class="px-2 py-1 rounded-lg text-[11px] font-semibold bg-white border border-slate-200 hover:border-rose-400 text-rose-600 transition">
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function copySavedDateActivities() {
+      const targetDate = document.getElementById("empSingleDate").value || getTodayISO();
+      const itemsOnDate = reports.filter(r => r.employee_id === selectedEmployeeId && r.report_date === targetDate);
+
+      if (itemsOnDate.length === 0) {
+        showToast(`Belum ada kinerja tersimpan pada tanggal ${targetDate}.`);
+        return;
+      }
+
+      const textList = itemsOnDate.map((item, idx) => `${idx + 1}. ${item.title}`).join("\n");
+      navigator.clipboard.writeText(textList);
+      showToast(`Seluruh kinerja tanggal ${targetDate} (${itemsOnDate.length} item) berhasil disalin!`);
     }
 
     // =========================================================================
@@ -2485,18 +2598,15 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       const record = getDescriptionRecord(selectedEmployeeId, dateStr);
       const textarea = document.getElementById("empDailyDescription");
       const badge = document.getElementById("descStatusBadge");
-      const updatedEl = document.getElementById("descUpdatedAtText");
 
       if (record && record.description) {
         textarea.value = record.description;
         badge.className = "px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200";
         badge.textContent = "✓ Tersimpan";
-        updatedEl.textContent = record.updated_at ? `Tgl: ${dateStr}` : "";
       } else {
         textarea.value = "";
         badge.className = "px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600";
         badge.textContent = "Belum Diisi";
-        updatedEl.textContent = "";
       }
     }
 
@@ -2565,34 +2675,32 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     }
 
     function renderSavedDescriptionsChips() {
-      const banner = document.getElementById("savedDescriptionsBanner");
       const chipsEl = document.getElementById("savedDescriptionsChips");
-      if (!banner || !chipsEl || !selectedEmployeeId) return;
+      if (!chipsEl || !selectedEmployeeId) return;
 
       const empDescs = dailyDescriptions
         .filter(d => d.employee_id === selectedEmployeeId && d.description)
         .sort((a, b) => (b.report_date || "").localeCompare(a.report_date || ""));
 
       if (empDescs.length === 0) {
-        banner.classList.add("hidden");
+        chipsEl.innerHTML = `<span class="text-[11px] text-slate-400">Belum ada riwayat tanggal deskripsi tersimpan.</span>`;
         return;
       }
 
-      banner.classList.remove("hidden");
-      chipsEl.innerHTML = empDescs.map(d => `
-        <button type="button" onclick="selectSavedDescriptionDate('${d.report_date}')"
-          class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-indigo-200 hover:bg-indigo-600 hover:text-white text-indigo-800 shadow-sm transition">
-          📅 ${d.report_date}
-        </button>
-      `).join("");
+      chipsEl.innerHTML = `<span class="text-[11px] font-semibold text-slate-500 mr-1">Tersimpan:</span>` +
+        empDescs.map(d => `
+          <button type="button" onclick="selectSavedDescriptionDate('${d.report_date}')"
+            class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-indigo-50 border border-indigo-200 hover:bg-indigo-600 hover:text-white text-indigo-800 transition">
+            📅 ${d.report_date}
+          </button>
+        `).join("");
     }
 
     function selectSavedDescriptionDate(dateStr) {
       document.getElementById("empDescDate").value = dateStr;
       document.getElementById("empSingleDate").value = dateStr;
-      document.getElementById("reportDate").value = dateStr;
+      renderSavedDateActivities();
       loadEmployeeDescriptionForDate();
-      renderReports();
       showToast(`Menampilkan kinerja & deskripsi tanggal ${dateStr}`);
     }
 
@@ -2661,6 +2769,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       reports = reports.map(r => r.id === repId ? { ...r, ...updatePayload } : r);
       saveLocalData();
       closeEditSingleActivityModal();
+      renderSavedDateActivities();
       renderReports();
       showToast("Kinerja harian berhasil diperbarui!");
     }
@@ -2683,6 +2792,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       }
       reports = reports.filter(r => r.id !== repId);
       saveLocalData();
+      renderSavedDateActivities();
       renderReports();
       showToast("Kegiatan dihapus.");
     }
@@ -2729,7 +2839,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       if (scopedReports.length === 0) {
         listEl.innerHTML = `
           <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500 text-sm">
-            Belum ada laporan aktivitas ${selectedDate ? `pada tanggal <strong>${selectedDate}</strong>` : 'untuk pegawai ini'}. Silakan input melalui form di atas.
+            Belum ada laporan aktivitas ${selectedDate ? `pada tanggal <strong>${selectedDate}</strong>` : 'untuk pegawai ini'}.
           </div>`;
         return;
       }
@@ -2757,7 +2867,6 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
                 <span class="px-2.5 py-0.5 rounded-lg bg-teal-50 text-teal-700 font-semibold text-xs">
                   ${mins} Menit
                 </span>
-                ${item.eselon ? `<span class="px-2.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 font-semibold text-xs">${item.eselon}</span>` : ''}
                 <span class="px-2.5 py-0.5 rounded-lg bg-amber-50 text-amber-700 font-semibold text-xs">
                   ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin
                 </span>
@@ -2801,7 +2910,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     }
 
     function copyAllDailyActivitiesOnly() {
-      const targetDate = document.getElementById("reportDate").value || document.getElementById("empDescDate").value;
+      const targetDate = document.getElementById("reportDate").value;
       const scoped = reports
         .filter(r => r.employee_id === selectedEmployeeId && (!targetDate || r.report_date === targetDate))
         .sort((a, b) => (b.report_date || "").localeCompare(a.report_date || ""));
@@ -2828,7 +2937,6 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       const text = `*LAPORAN E-KINERJA HARIAN PRIMER*
 Nama: ${emp.name}
 Tanggal: ${item.report_date}
-Eselon: ${item.eselon || '-'}
 Kegiatan: ${item.title}
 Waktu: ${mins} Menit
 Poin: ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin`;
