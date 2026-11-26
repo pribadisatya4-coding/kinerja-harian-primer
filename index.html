@@ -58,7 +58,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 class="text-base sm:text-lg font-bold text-slate-800">Daftar Pegawai Primer</h2>
-            <p class="text-xs sm:text-sm text-slate-500">Klik kartu pegawai untuk melihat seluruh aktivitas kinerja & menyalin laporan.</p>
+            <p class="text-xs sm:text-sm text-slate-500">Klik kartu pegawai untuk input kinerja harian per tanggal, mengisi deskripsi, serta menyalin laporan.</p>
           </div>
           <div class="flex flex-col sm:flex-row gap-2.5">
             <input type="text" id="searchInput" oninput="renderEmployees()" placeholder="Cari nama atau NIP..."
@@ -74,7 +74,7 @@
       <div id="employeeGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
 
-    <!-- VIEW 2: DASHBOARD KHUSUS INPUT, EDIT & HAPUS KINERJA HARIAN -->
+    <!-- VIEW 2: DASHBOARD KHUSUS INPUT, EDIT & HAPUS KINERJA HARIAN MASSAL -->
     <section id="bulkInputView" class="hidden">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <button onclick="showEmployeeList()"
@@ -224,7 +224,7 @@
       </div>
     </section>
 
-    <!-- VIEW 3: DETAIL LAPORAN PEGAWAI (DASHBOARD PEGAWAI) -->
+    <!-- VIEW 3: DETAIL LAPORAN PEGAWAI (DASHBOARD INDIVIDUAL PEGAWAI) -->
     <section id="reportDetailView" class="hidden">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <button onclick="showEmployeeList()"
@@ -233,8 +233,12 @@
         </button>
         <div class="flex flex-wrap items-center gap-2">
           <label for="reportDate" class="text-xs sm:text-sm font-medium text-slate-600">Filter Tanggal:</label>
-          <input type="date" id="reportDate" onchange="renderReports()"
+          <input type="date" id="reportDate" onchange="onEmployeeDateFilterChange()"
             class="px-3 py-1.5 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <button type="button" id="todayDateFilterBtn" onclick="setTodayDateFilter()"
+            class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700 transition">
+            Hari Ini
+          </button>
           <button type="button" id="resetDateFilterBtn" onclick="resetDateFilter()"
             class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-teal-600 text-white shadow-sm transition">
             Semua Tanggal
@@ -254,10 +258,12 @@
               <p id="selectedMeta" class="text-xs sm:text-sm text-slate-500">NIP • Jabatan • Divisi</p>
             </div>
           </div>
-          <button onclick="copyAllRecap()"
-            class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
-            📋 Salin Rekap Aktivitas
-          </button>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="copyAllRecap()"
+              class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
+              📋 Salin Rekap Lengkap
+            </button>
+          </div>
         </div>
 
         <!-- Panel Akumulasi -->
@@ -277,21 +283,166 @@
         </div>
       </div>
 
+      <!-- MENU INPUT KINERJA HARIAN SATU PER SATU & DESKRIPSI PER TANGGAL -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+        <!-- Kolom Kiri (7 Kolom): Input Kinerja Harian Pegawai (Satu per Satu) -->
+        <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div class="flex items-center justify-between gap-2 pb-3 mb-4 border-b border-slate-100">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">➕ Input Kinerja Harian Pegawai</h3>
+              <p class="text-xs text-slate-500">Tambahkan aktivitas kinerja satu per satu sesuai tanggal untuk pegawai ini.</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+              Input Individual
+            </span>
+          </div>
+
+          <form onsubmit="addSingleEmployeeActivity(event)" class="space-y-3.5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Kinerja</label>
+                <input type="date" id="empSingleDate" onchange="onEmpSingleDateChange()" required
+                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Eselon / Jabatan</label>
+                <select id="empSingleEselon" required
+                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+                  <option value="Non-Eselon / JF / Pelaksana">Non-Eselon / JF / Pelaksana</option>
+                  <option value="Eselon IV">Eselon IV</option>
+                  <option value="Eselon III">Eselon III</option>
+                  <option value="Eselon II">Eselon II</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Pilih Cepat dari Master CANDI BADUNG -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Cepat Master Aktivitas (Opsional)</label>
+              <select id="empPresetQuickSelect" onchange="applyPresetToSingleForm()"
+                class="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+                <option value="">-- Pilih dari 304 Master Aktivitas CANDI BADUNG atau ketik manual di bawah --</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Uraian Kinerja Harian</label>
+              <textarea id="empSingleTitle" rows="2" required
+                placeholder="Ketik uraian kegiatan kinerja harian yang dilaksanakan..."
+                class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"></textarea>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Waktu (Menit)</label>
+                <input type="number" id="empSingleMinutes" min="1" max="1440" value="30" oninput="updateEmpSingleCalculation()" required
+                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Indeks</label>
+                <select id="empSingleIndex" onchange="updateEmpSingleCalculation()" required
+                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+                  <option value="1">1</option>
+                  <option value="1.25">1.25</option>
+                  <option value="1.5">1.5</option>
+                  <option value="1.75">1.75</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Poin Otomatis</label>
+                <input type="text" id="empSinglePoints" readonly value="30 × 1 = 30"
+                  class="w-full px-3 py-2 text-xs sm:text-sm font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded-xl outline-none" />
+              </div>
+            </div>
+
+            <button type="submit" id="empSingleSubmitBtn"
+              class="w-full py-2.5 px-4 rounded-xl text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition">
+              + Simpan Kinerja Harian
+            </button>
+          </form>
+        </div>
+
+        <!-- Kolom Kanan (5 Kolom): Menu Deskripsi Kinerja Harian per Tanggal -->
+        <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100">
+              <div>
+                <h3 class="text-base font-bold text-slate-900">📝 Deskripsi Kinerja per Tanggal</h3>
+                <p class="text-xs text-slate-500">Isi, edit, simpan, dan salin deskripsi kinerja harian pada tanggal dipilih.</p>
+              </div>
+              <span id="descStatusBadge" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">
+                Belum Diisi
+              </span>
+            </div>
+
+            <div class="mb-3">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Deskripsi</label>
+              <input type="date" id="empDescDate" onchange="loadEmployeeDescriptionForDate()"
+                class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+            </div>
+
+            <div class="mb-3">
+              <div class="flex items-center justify-between mb-1">
+                <label for="empDailyDescription" class="block text-xs font-semibold text-slate-700">Isi Deskripsi / Ringkasan Harian</label>
+                <span id="descUpdatedAtText" class="text-[11px] text-slate-400"></span>
+              </div>
+              <textarea id="empDailyDescription" rows="5"
+                placeholder="Tuliskan deskripsi ringkasan pelaksanaan tugas harian pada tanggal ini..."
+                class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+            </div>
+          </div>
+
+          <div class="space-y-2 pt-2 border-t border-slate-100">
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" onclick="saveEmployeeDailyDescription()"
+                class="py-2 px-3 rounded-xl text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition">
+                💾 Simpan Deskripsi
+              </button>
+              <button type="button" onclick="focusEditDescription()"
+                class="py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition">
+                ✏️ Edit Deskripsi
+              </button>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" onclick="copyEmployeeDailyDescription()"
+                class="py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 transition">
+                📋 Salin Deskripsi
+              </button>
+              <button type="button" onclick="copyAllDailyActivitiesOnly()"
+                class="py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+                📝 Salin Kinerja Tanggal Ini
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Riwayat Tanggal yang Memiliki Deskripsi Tersimpan -->
+      <div id="savedDescriptionsBanner" class="hidden bg-indigo-50/60 border border-indigo-200/80 rounded-2xl p-4 mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <span class="text-xs font-bold text-indigo-900">📌 Tanggal dengan Deskripsi Tersimpan (Klik tanggal untuk membuka/edit):</span>
+        </div>
+        <div id="savedDescriptionsChips" class="flex flex-wrap gap-2"></div>
+      </div>
+
       <!-- Daftar Kegiatan Semua Tanggal + Pencarian Aktivitas -->
       <div>
         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 class="text-base font-bold text-slate-800">Daftar Aktivitas Tercatat</h3>
-            <p class="text-xs text-slate-500">Menampilkan aktivitas kinerja pada semua tanggal.</p>
+            <h3 class="text-base font-bold text-slate-800">Daftar Kinerja Harian Tercatat</h3>
+            <p class="text-xs text-slate-500">Gunakan tombol <strong>Edit</strong> untuk mengubah, <strong>Salin Kinerja Harian</strong> untuk menyalin uraian, atau <strong>Salin Detail</strong>.</p>
           </div>
           <div class="flex flex-wrap items-center gap-2.5">
             <div class="relative flex-1 sm:w-72">
               <input type="text" id="activitySearchInput" oninput="renderReports()"
-                placeholder="🔍 Cari aktivitas kinerja..."
+                placeholder="🔍 Cari kinerja harian..."
                 class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" />
             </div>
-            <button onclick="copyAllRecap()" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-xs font-semibold text-teal-700 transition">
-              Salin Semua
+            <button onclick="copyAllDailyActivitiesOnly()" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-xs font-semibold text-teal-700 transition">
+              Salin Semua Kinerja
             </button>
           </div>
         </div>
@@ -299,6 +450,76 @@
       </div>
     </section>
   </main>
+
+  <!-- Modal Edit Kinerja Harian Individual Pegawai -->
+  <div id="editSingleActivityModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-slate-900">Edit Kinerja Harian Pegawai</h3>
+        <button onclick="closeEditSingleActivityModal()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+      </div>
+      <form onsubmit="saveEditedSingleActivity(event)" class="space-y-3.5">
+        <input type="hidden" id="editSingleRepId" />
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Kegiatan</label>
+            <input type="date" id="editSingleDate" required
+              class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-teal-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Eselon</label>
+            <select id="editSingleEselon" required
+              class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-teal-500">
+              <option value="Non-Eselon / JF / Pelaksana">Non-Eselon / JF / Pelaksana</option>
+              <option value="Eselon IV">Eselon IV</option>
+              <option value="Eselon III">Eselon III</option>
+              <option value="Eselon II">Eselon II</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Uraian Kinerja Harian</label>
+          <textarea id="editSingleTitle" rows="3" required
+            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500"></textarea>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Waktu (Menit)</label>
+            <input type="number" id="editSingleMinutes" min="1" max="1440" oninput="updateEditSinglePreview()" required
+              class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Indeks</label>
+            <select id="editSingleIndex" onchange="updateEditSinglePreview()" required
+              class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-teal-500">
+              <option value="1">1</option>
+              <option value="1.25">1.25</option>
+              <option value="1.5">1.5</option>
+              <option value="1.75">1.75</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Poin</label>
+            <input type="text" id="editSinglePoints" readonly
+              class="w-full px-3 py-2 text-sm font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded-xl outline-none" />
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeEditSingleActivityModal()"
+            class="px-4 py-2 text-sm rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Batal</button>
+          <button type="submit"
+            class="px-4 py-2 text-sm font-semibold rounded-xl bg-teal-600 hover:bg-teal-700 text-white">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Modal Edit Master Aktivitas (Daftar CANDI BADUNG) -->
   <div id="editPresetModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-4 z-50">
@@ -424,7 +645,6 @@
         <button onclick="closeAddEmployeeModal()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
       </div>
       <form onsubmit="addEmployee(event)" class="space-y-3.5">
-        <!-- Upload / Pratinjau Logo Pegawai -->
         <div class="flex items-center gap-3.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
           <div id="addEmpLogoPreview" class="w-14 h-14 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-base overflow-hidden border border-slate-300 shrink-0">
             LOGO
@@ -480,7 +700,6 @@
       <form onsubmit="saveEditedEmployee(event)" class="space-y-3.5">
         <input type="hidden" id="editEmpId" />
 
-        <!-- Upload / Pratinjau Logo Pegawai -->
         <div class="flex items-center gap-3.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
           <div id="editEmpLogoPreview" class="w-14 h-14 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-base overflow-hidden border border-slate-300 shrink-0">
             LOGO
@@ -534,7 +753,7 @@
         <button onclick="closeDbModal()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
       </div>
       <p class="text-xs text-slate-600 mb-4">
-        Hubungkan aplikasi dengan Supabase agar data pegawai, logo, dan laporan tersimpan permanen lintas perangkat.
+        Hubungkan aplikasi dengan Supabase agar data pegawai, logo, laporan kinerja, dan deskripsi harian tersimpan permanen lintas perangkat.
       </p>
 
       <div class="space-y-3 mb-5">
@@ -595,6 +814,15 @@ CREATE TABLE IF NOT EXISTS reports (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Tabel Deskripsi Kinerja Harian per Tanggal
+CREATE TABLE IF NOT EXISTS daily_descriptions (
+  id TEXT PRIMARY KEY,
+  employee_id TEXT REFERENCES employees(id) ON DELETE CASCADE,
+  report_date DATE NOT NULL,
+  description TEXT NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Tabel Master Aktivitas CANDI BADUNG
 CREATE TABLE IF NOT EXISTS preset_activities (
   id TEXT PRIMARY KEY,
@@ -610,6 +838,7 @@ ALTER TABLE reports ALTER COLUMN points TYPE NUMERIC(8,2);
 
 ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_descriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE preset_activities ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public Access Employees" ON employees;
@@ -617,6 +846,9 @@ CREATE POLICY "Public Access Employees" ON employees FOR ALL USING (true) WITH C
 
 DROP POLICY IF EXISTS "Public Access Reports" ON reports;
 CREATE POLICY "Public Access Reports" ON reports FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public Access Descriptions" ON daily_descriptions;
+CREATE POLICY "Public Access Descriptions" ON daily_descriptions FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public Access Presets" ON preset_activities;
 CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) WITH CHECK (true);</pre>
@@ -901,6 +1133,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
 
     let PRESET_ACTIVITIES = JSON.parse(localStorage.getItem("ekinerja_presets_v3")) || [...DEFAULT_PRESET_ACTIVITIES];
     let hasPresetTable = false;
+    let hasDescriptionTable = false;
 
     let supabaseClient = null;
     let realtimeChannel = null;
@@ -915,6 +1148,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
 
     let employees = [];
     let reports = [];
+    let dailyDescriptions = [];
     let currentGroupedHistory = [];
 
     // =========================================================================
@@ -1278,7 +1512,6 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       document.getElementById("reportDetailView").classList.add("hidden");
     }
 
-    // Atur visibilitas tombol menu header (hanya tampil di Dashboard Utama)
     function setHeaderMenuVisibility(isMainDashboard) {
       const headerMenu = document.getElementById("headerActionMenu");
       if (!headerMenu) return;
@@ -1326,6 +1559,8 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       }
       if (!document.getElementById("reportDetailView").classList.contains("hidden") && selectedEmployeeId) {
         renderReports();
+        loadEmployeeDescriptionForDate();
+        renderSavedDescriptionsChips();
       }
     }
 
@@ -1341,6 +1576,9 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
           syncFromSupabase(true);
         })
         .on("postgres_changes", { event: "*", schema: "public", table: "reports" }, () => {
+          syncFromSupabase(true);
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "daily_descriptions" }, () => {
           syncFromSupabase(true);
         })
         .on("postgres_changes", { event: "*", schema: "public", table: "preset_activities" }, () => {
@@ -1363,6 +1601,16 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
           avatar_url: emp.avatar_url || localMap[emp.id]?.avatar_url || ""
         }));
         reports = repData;
+
+        // Sync daily_descriptions jika tabel tersedia
+        const { data: descData, error: descErr } = await supabaseClient
+          .from("daily_descriptions")
+          .select("*");
+
+        if (!descErr && descData) {
+          hasDescriptionTable = true;
+          dailyDescriptions = descData;
+        }
 
         const { data: presetData, error: presetErr } = await supabaseClient
           .from("preset_activities")
@@ -1415,6 +1663,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
 
       const localEmployees = JSON.parse(localStorage.getItem("ekinerja_employees")) || [];
       const localMap = Object.fromEntries(localEmployees.map(e => [e.id, e]));
+      dailyDescriptions = JSON.parse(localStorage.getItem("ekinerja_daily_descriptions")) || [];
 
       if (savedUrl && savedKey && window.supabase) {
         try {
@@ -1436,6 +1685,15 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
             }));
           }
           reports = repData || [];
+
+          const { data: descData, error: descErr } = await supabaseClient
+            .from("daily_descriptions")
+            .select("*");
+
+          if (!descErr && descData) {
+            hasDescriptionTable = true;
+            dailyDescriptions = descData;
+          }
 
           const { data: presetData, error: presetErr } = await supabaseClient
             .from("preset_activities")
@@ -1489,6 +1747,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     function saveLocalData() {
       localStorage.setItem("ekinerja_employees", JSON.stringify(employees));
       localStorage.setItem("ekinerja_reports", JSON.stringify(reports));
+      localStorage.setItem("ekinerja_daily_descriptions", JSON.stringify(dailyDescriptions));
     }
 
     function populateDivisionFilter() {
@@ -1574,6 +1833,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
 
       employees = employees.filter(e => e.id !== empId);
       reports = reports.filter(r => r.employee_id !== empId);
+      dailyDescriptions = dailyDescriptions.filter(d => d.employee_id !== empId);
       saveLocalData();
       populateDivisionFilter();
       renderEmployees();
@@ -1630,7 +1890,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
             </div>
             <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span class="text-slate-400">${emp.division}</span>
-              <span class="font-semibold text-teal-600">${hasReported ? `Total ${formatNum(totalPoints)} Poin →` : 'Lihat Laporan →'}</span>
+              <span class="font-semibold text-teal-600">${hasReported ? `Total ${formatNum(totalPoints)} Poin →` : 'Input Kinerja →'}</span>
             </div>
           </div>
         `;
@@ -2057,29 +2317,352 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     }
 
     // =========================================================================
-    // HALAMAN DETAIL LAPORAN PEGAWAI (DASHBOARD PEGAWAI)
+    // HALAMAN DETAIL LAPORAN PEGAWAI (INPUT SATU PER SATU, DESKRIPSI, EDIT & SALIN)
     // =========================================================================
+    function populateEmpPresetQuickSelect() {
+      const select = document.getElementById("empPresetQuickSelect");
+      if (!select) return;
+      select.innerHTML = `<option value="">-- Pilih dari ${PRESET_ACTIVITIES.length} Master Aktivitas CANDI BADUNG atau ketik manual di bawah --</option>` +
+        PRESET_ACTIVITIES.map((p, idx) =>
+          `<option value="${idx}">${idx + 1}. ${p.title} (${p.minutes} mnt × ${p.index} = ${formatNum(p.minutes * p.index)} Poin)</option>`
+        ).join("");
+    }
+
+    function applyPresetToSingleForm() {
+      const idx = document.getElementById("empPresetQuickSelect").value;
+      if (idx === "") return;
+      const preset = PRESET_ACTIVITIES[Number(idx)];
+      if (!preset) return;
+
+      document.getElementById("empSingleTitle").value = preset.title;
+      document.getElementById("empSingleMinutes").value = preset.minutes;
+      document.getElementById("empSingleIndex").value = String(preset.index);
+      updateEmpSingleCalculation();
+    }
+
+    function updateEmpSingleCalculation() {
+      const mins = parseInt(document.getElementById("empSingleMinutes").value, 10) || 0;
+      const idx = parseFloat(document.getElementById("empSingleIndex").value) || 1;
+      const pts = mins * idx;
+      document.getElementById("empSinglePoints").value = `${mins} × ${formatNum(idx)} = ${formatNum(pts)}`;
+    }
+
     function openEmployeeReport(empId) {
       selectedEmployeeId = empId;
       const emp = employees.find(e => e.id === empId);
       if (!emp) return;
 
+      const today = getTodayISO();
+
       document.getElementById("selectedAvatarContainer").innerHTML = renderAvatarContent(emp);
       document.getElementById("selectedName").textContent = emp.name;
       document.getElementById("selectedMeta").textContent = `NIP: ${emp.nip} • ${emp.role} • ${emp.division}`;
 
+      // Set default tanggal pada form input individual & deskripsi ke hari ini
+      document.getElementById("empSingleDate").value = today;
+      document.getElementById("empDescDate").value = today;
+      document.getElementById("empSingleTitle").value = "";
+      document.getElementById("empSingleMinutes").value = 30;
+      document.getElementById("empSingleIndex").value = "1";
+      updateEmpSingleCalculation();
+      populateEmpPresetQuickSelect();
+
+      // Default tampilan daftar menampilkan semua tanggal (bisa difilter per tanggal)
       document.getElementById("reportDate").value = "";
       document.getElementById("activitySearchInput").value = "";
 
       hideAllViews();
       setHeaderMenuVisibility(false);
       document.getElementById("reportDetailView").classList.remove("hidden");
+
+      loadEmployeeDescriptionForDate();
+      renderSavedDescriptionsChips();
+      renderReports();
+    }
+
+    function onEmployeeDateFilterChange() {
+      const filterDate = document.getElementById("reportDate").value;
+      if (filterDate) {
+        document.getElementById("empSingleDate").value = filterDate;
+        document.getElementById("empDescDate").value = filterDate;
+        loadEmployeeDescriptionForDate();
+      }
+      renderReports();
+    }
+
+    function onEmpSingleDateChange() {
+      const singleDate = document.getElementById("empSingleDate").value;
+      if (singleDate) {
+        document.getElementById("empDescDate").value = singleDate;
+        loadEmployeeDescriptionForDate();
+      }
+    }
+
+    function setTodayDateFilter() {
+      const today = getTodayISO();
+      document.getElementById("reportDate").value = today;
+      document.getElementById("empSingleDate").value = today;
+      document.getElementById("empDescDate").value = today;
+      loadEmployeeDescriptionForDate();
       renderReports();
     }
 
     function resetDateFilter() {
       document.getElementById("reportDate").value = "";
       renderReports();
+    }
+
+    // Input Kinerja Harian Satu per Satu untuk Pegawai Terpilih
+    async function addSingleEmployeeActivity(e) {
+      e.preventDefault();
+      if (!selectedEmployeeId) return;
+
+      const reportDate = document.getElementById("empSingleDate").value || getTodayISO();
+      const eselon = document.getElementById("empSingleEselon").value;
+      const title = document.getElementById("empSingleTitle").value.trim();
+      const durationMinutes = parseInt(document.getElementById("empSingleMinutes").value, 10) || 0;
+      const indexVal = parseFloat(document.getElementById("empSingleIndex").value) || 1;
+
+      if (!title) {
+        showToast("Uraian kinerja harian wajib diisi!");
+        return;
+      }
+      if (durationMinutes <= 0) {
+        showToast("Waktu (Menit) harus lebih dari 0!");
+        return;
+      }
+
+      const existingEmpReports = reports.filter(r => r.employee_id === selectedEmployeeId && r.report_date === reportDate);
+      const startTime = existingEmpReports.length > 0
+        ? existingEmpReports[existingEmpReports.length - 1].end_time
+        : "08:00";
+      const endTime = addMinutesToTime(startTime, durationMinutes);
+      const points = Number((durationMinutes * indexVal).toFixed(2));
+
+      const newReport = {
+        id: `rep-${Date.now()}`,
+        employee_id: selectedEmployeeId,
+        report_date: reportDate,
+        start_time: startTime,
+        end_time: endTime,
+        duration_minutes: durationMinutes,
+        title,
+        output: `1 Kegiatan (${eselon})`,
+        eselon,
+        index_val: indexVal,
+        points,
+        status: "Selesai"
+      };
+
+      const btn = document.getElementById("empSingleSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "Menyimpan...";
+
+      try {
+        await saveBatchToStorage([newReport]);
+        document.getElementById("empSingleTitle").value = "";
+        document.getElementById("empPresetQuickSelect").value = "";
+        renderReports();
+        showToast(`Kinerja harian pada tanggal ${reportDate} berhasil disimpan!`);
+      } catch (err) {
+        showToast("Gagal menyimpan kinerja: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "+ Simpan Kinerja Harian";
+      }
+    }
+
+    // =========================================================================
+    // MENU DESKRIPSI PER TANGGAL (SIMPAN, EDIT & SALIN DESKRIPSI)
+    // =========================================================================
+    function getDescriptionRecord(empId, dateStr) {
+      return dailyDescriptions.find(d => d.employee_id === empId && d.report_date === dateStr);
+    }
+
+    function loadEmployeeDescriptionForDate() {
+      if (!selectedEmployeeId) return;
+      const dateStr = document.getElementById("empDescDate").value || getTodayISO();
+      const record = getDescriptionRecord(selectedEmployeeId, dateStr);
+      const textarea = document.getElementById("empDailyDescription");
+      const badge = document.getElementById("descStatusBadge");
+      const updatedEl = document.getElementById("descUpdatedAtText");
+
+      if (record && record.description) {
+        textarea.value = record.description;
+        badge.className = "px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200";
+        badge.textContent = "✓ Tersimpan";
+        updatedEl.textContent = record.updated_at ? `Tgl: ${dateStr}` : "";
+      } else {
+        textarea.value = "";
+        badge.className = "px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600";
+        badge.textContent = "Belum Diisi";
+        updatedEl.textContent = "";
+      }
+    }
+
+    async function saveEmployeeDailyDescription() {
+      if (!selectedEmployeeId) return;
+      const dateStr = document.getElementById("empDescDate").value || getTodayISO();
+      const textVal = document.getElementById("empDailyDescription").value.trim();
+
+      if (!textVal) {
+        showToast("Isi deskripsi terlebih dahulu sebelum menyimpan.");
+        document.getElementById("empDailyDescription").focus();
+        return;
+      }
+
+      const existingIdx = dailyDescriptions.findIndex(d => d.employee_id === selectedEmployeeId && d.report_date === dateStr);
+      const recordId = existingIdx >= 0 ? dailyDescriptions[existingIdx].id : `desc-${selectedEmployeeId}-${dateStr}`;
+      const payload = {
+        id: recordId,
+        employee_id: selectedEmployeeId,
+        report_date: dateStr,
+        description: textVal,
+        updated_at: new Date().toISOString()
+      };
+
+      if (isSupabaseConnected && supabaseClient && hasDescriptionTable) {
+        try {
+          const { error } = await supabaseClient
+            .from("daily_descriptions")
+            .upsert([payload], { onConflict: "id" });
+          if (error) console.warn("Sync deskripsi ke Supabase:", error.message);
+        } catch (err) {
+          console.warn("Deskripsi tersimpan lokal:", err);
+        }
+      }
+
+      if (existingIdx >= 0) {
+        dailyDescriptions[existingIdx] = payload;
+      } else {
+        dailyDescriptions.push(payload);
+      }
+
+      saveLocalData();
+      loadEmployeeDescriptionForDate();
+      renderSavedDescriptionsChips();
+      showToast(`Deskripsi tanggal ${dateStr} berhasil disimpan!`);
+    }
+
+    function focusEditDescription() {
+      const textarea = document.getElementById("empDailyDescription");
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      showToast("Silakan ubah deskripsi lalu klik 'Simpan Deskripsi'.");
+    }
+
+    function copyEmployeeDailyDescription() {
+      const dateStr = document.getElementById("empDescDate").value || getTodayISO();
+      const textVal = document.getElementById("empDailyDescription").value.trim();
+
+      if (!textVal) {
+        showToast(`Deskripsi pada tanggal ${dateStr} masih kosong.`);
+        return;
+      }
+
+      navigator.clipboard.writeText(textVal);
+      showToast(`Deskripsi tanggal ${dateStr} berhasil disalin!`);
+    }
+
+    function renderSavedDescriptionsChips() {
+      const banner = document.getElementById("savedDescriptionsBanner");
+      const chipsEl = document.getElementById("savedDescriptionsChips");
+      if (!banner || !chipsEl || !selectedEmployeeId) return;
+
+      const empDescs = dailyDescriptions
+        .filter(d => d.employee_id === selectedEmployeeId && d.description)
+        .sort((a, b) => (b.report_date || "").localeCompare(a.report_date || ""));
+
+      if (empDescs.length === 0) {
+        banner.classList.add("hidden");
+        return;
+      }
+
+      banner.classList.remove("hidden");
+      chipsEl.innerHTML = empDescs.map(d => `
+        <button type="button" onclick="selectSavedDescriptionDate('${d.report_date}')"
+          class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-indigo-200 hover:bg-indigo-600 hover:text-white text-indigo-800 shadow-sm transition">
+          📅 ${d.report_date}
+        </button>
+      `).join("");
+    }
+
+    function selectSavedDescriptionDate(dateStr) {
+      document.getElementById("empDescDate").value = dateStr;
+      document.getElementById("empSingleDate").value = dateStr;
+      document.getElementById("reportDate").value = dateStr;
+      loadEmployeeDescriptionForDate();
+      renderReports();
+      showToast(`Menampilkan kinerja & deskripsi tanggal ${dateStr}`);
+    }
+
+    // =========================================================================
+    // EDIT & SALIN KINERJA HARIAN INDIVIDUAL PEGAWAI
+    // =========================================================================
+    function openEditSingleActivityModal(repId) {
+      const item = reports.find(r => r.id === repId);
+      if (!item) return;
+
+      document.getElementById("editSingleRepId").value = item.id;
+      document.getElementById("editSingleDate").value = item.report_date || getTodayISO();
+      document.getElementById("editSingleEselon").value = item.eselon || "Non-Eselon / JF / Pelaksana";
+      document.getElementById("editSingleTitle").value = item.title;
+      document.getElementById("editSingleMinutes").value = item.duration_minutes;
+      document.getElementById("editSingleIndex").value = String(Number(item.index_val || 1));
+      updateEditSinglePreview();
+
+      document.getElementById("editSingleActivityModal").classList.remove("hidden");
+      document.getElementById("editSingleActivityModal").classList.add("flex");
+    }
+
+    function closeEditSingleActivityModal() {
+      document.getElementById("editSingleActivityModal").classList.add("hidden");
+      document.getElementById("editSingleActivityModal").classList.remove("flex");
+    }
+
+    function updateEditSinglePreview() {
+      const mins = parseInt(document.getElementById("editSingleMinutes").value, 10) || 0;
+      const idx = parseFloat(document.getElementById("editSingleIndex").value) || 1;
+      document.getElementById("editSinglePoints").value = `${mins} × ${formatNum(idx)} = ${formatNum(mins * idx)}`;
+    }
+
+    async function saveEditedSingleActivity(e) {
+      e.preventDefault();
+      const repId = document.getElementById("editSingleRepId").value;
+      const newDate = document.getElementById("editSingleDate").value;
+      const newEselon = document.getElementById("editSingleEselon").value;
+      const newTitle = document.getElementById("editSingleTitle").value.trim();
+      const newMinutes = parseInt(document.getElementById("editSingleMinutes").value, 10) || 1;
+      const newIndex = parseFloat(document.getElementById("editSingleIndex").value) || 1;
+      const newPoints = Number((newMinutes * newIndex).toFixed(2));
+
+      const updatePayload = {
+        report_date: newDate,
+        eselon: newEselon,
+        title: newTitle,
+        duration_minutes: newMinutes,
+        index_val: newIndex,
+        points: newPoints,
+        output: `1 Kegiatan (${newEselon})`
+      };
+
+      if (isSupabaseConnected && supabaseClient) {
+        const { error } = await supabaseClient.from("reports").update(updatePayload).eq("id", repId);
+        if (error) {
+          const { eselon, ...fallbackPayload } = updatePayload;
+          const { error: retryErr } = await supabaseClient.from("reports").update(fallbackPayload).eq("id", repId);
+          if (retryErr) {
+            showToast("Gagal memperbarui kinerja: " + retryErr.message);
+            return;
+          }
+        }
+      }
+
+      reports = reports.map(r => r.id === repId ? { ...r, ...updatePayload } : r);
+      saveLocalData();
+      closeEditSingleActivityModal();
+      renderReports();
+      showToast("Kinerja harian berhasil diperbarui!");
     }
 
     function formatDuration(minutes) {
@@ -2090,6 +2673,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     }
 
     async function deleteActivity(repId) {
+      if (!confirm("Hapus item kinerja harian ini?")) return;
       if (isSupabaseConnected && supabaseClient) {
         const { error } = await supabaseClient.from("reports").delete().eq("id", repId);
         if (error) {
@@ -2108,12 +2692,19 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       const searchQuery = (document.getElementById("activitySearchInput").value || "").toLowerCase().trim();
 
       const resetBtn = document.getElementById("resetDateFilterBtn");
+      const todayBtn = document.getElementById("todayDateFilterBtn");
       const periodLabel = document.getElementById("periodLabelText");
+      const todayISO = getTodayISO();
+
       if (selectedDate) {
         resetBtn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700 transition";
         periodLabel.textContent = selectedDate;
+        todayBtn.className = selectedDate === todayISO
+          ? "px-3 py-1.5 rounded-xl text-xs font-semibold bg-teal-600 text-white shadow-sm transition"
+          : "px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700 transition";
       } else {
         resetBtn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-teal-600 text-white shadow-sm transition";
+        todayBtn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700 transition";
         periodLabel.textContent = "Semua Tanggal";
       }
 
@@ -2138,7 +2729,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       if (scopedReports.length === 0) {
         listEl.innerHTML = `
           <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500 text-sm">
-            Belum ada laporan aktivitas ${selectedDate ? `pada tanggal <strong>${selectedDate}</strong>` : 'untuk pegawai ini'}.
+            Belum ada laporan aktivitas ${selectedDate ? `pada tanggal <strong>${selectedDate}</strong>` : 'untuk pegawai ini'}. Silakan input melalui form di atas.
           </div>`;
         return;
       }
@@ -2179,9 +2770,13 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
             <p class="text-sm font-medium text-slate-800 mb-3">${idx + 1}. ${item.title}</p>
 
             <div class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button onclick="openEditSingleActivityModal('${item.id}')"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition">
+                ✏️ Edit
+              </button>
               <button onclick="copyActivityTextOnly('${item.id}')"
                 class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-50 hover:bg-teal-100 text-teal-700 transition">
-                📝 Salin Teks
+                📝 Salin Kinerja Harian
               </button>
               <button onclick="copySingleActivity('${item.id}')"
                 class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
@@ -2202,7 +2797,23 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       if (!item) return;
 
       navigator.clipboard.writeText(item.title);
-      showToast("Teks uraian kegiatan berhasil disalin!");
+      showToast("Teks kinerja harian berhasil disalin!");
+    }
+
+    function copyAllDailyActivitiesOnly() {
+      const targetDate = document.getElementById("reportDate").value || document.getElementById("empDescDate").value;
+      const scoped = reports
+        .filter(r => r.employee_id === selectedEmployeeId && (!targetDate || r.report_date === targetDate))
+        .sort((a, b) => (b.report_date || "").localeCompare(a.report_date || ""));
+
+      if (scoped.length === 0) {
+        showToast("Tidak ada kinerja harian untuk disalin pada periode ini.");
+        return;
+      }
+
+      const plainList = scoped.map((item, i) => `${i + 1}. ${item.title}`).join("\n");
+      navigator.clipboard.writeText(plainList);
+      showToast(`Daftar kinerja harian (${scoped.length} kegiatan) berhasil disalin!`);
     }
 
     function copySingleActivity(repId) {
@@ -2241,6 +2852,11 @@ Poin: ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin`;
       const totalMinutes = filtered.reduce((sum, r) => sum + Number(r.duration_minutes || 0), 0);
       const totalPoints = filtered.reduce((sum, r) => sum + (Number(r.duration_minutes || 0) * Number(r.index_val || 1)), 0);
 
+      const descRecord = selectedDate ? getDescriptionRecord(selectedEmployeeId, selectedDate) : null;
+      const descSection = descRecord && descRecord.description
+        ? `\n*Deskripsi Harian (${selectedDate}):*\n${descRecord.description}\n`
+        : "";
+
       const lines = filtered.map((item, i) => {
         const mins = Number(item.duration_minutes || 0);
         const idxVal = Number(item.index_val || 1);
@@ -2253,7 +2869,7 @@ Nama: ${emp.name}
 NIP: ${emp.nip}
 Jabatan: ${emp.role}
 Periode: ${selectedDate || 'Semua Tanggal'}
-
+${descSection}
 *Rincian Kegiatan:*
 ${lines}
 
@@ -2263,7 +2879,7 @@ ${lines}
 - Akumulasi Poin: ${formatNum(totalPoints)} Poin`;
 
       navigator.clipboard.writeText(recapText);
-      showToast("Rekap aktivitas berhasil disalin!");
+      showToast("Rekap aktivitas lengkap berhasil disalin!");
     }
 
     // Modal Pegawai
