@@ -341,7 +341,7 @@
           </div>
         </div>
 
-        <!-- Kolom Kanan (7 Kolom): Kinerja Tersimpan Tanggal & Akumulasi Poin per Tanggal (Hanya dari Input Kinerja Harian) -->
+        <!-- Kolom Kanan (7 Kolom): Kinerja Tersimpan Tanggal & Pemilih Tanggal Sederhana -->
         <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
           <div>
             <!-- Header Panel -->
@@ -364,6 +364,19 @@
               </div>
             </div>
 
+            <!-- Pemilih Tanggal Ringkas (Dropdown Riwayat Tanggal + Kalender) -->
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 mb-3 rounded-xl bg-slate-50 border border-slate-200/90">
+              <label for="savedDateHistorySelect" class="text-xs font-semibold text-slate-700 shrink-0">
+                📅 Pilih Tanggal:
+              </label>
+              <select id="savedDateHistorySelect" onchange="onSavedDateDropdownChange()"
+                class="flex-1 px-3 py-1.5 text-xs sm:text-sm font-medium border border-slate-300 rounded-lg bg-white text-slate-800 focus:ring-2 focus:ring-teal-500 outline-none">
+                <option value="">-- Belum ada tanggal tersimpan --</option>
+              </select>
+              <input type="date" id="savedDateQuickPicker" onchange="onSavedDatePickerChange()" title="Pilih tanggal lain di kalender"
+                class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none" />
+            </div>
+
             <!-- Kartu Akumulasi Poin & Waktu Khusus Tanggal Terpilih -->
             <div class="grid grid-cols-3 gap-2.5 mb-3">
               <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 text-center">
@@ -381,13 +394,7 @@
             </div>
 
             <!-- Daftar Item Tersimpan pada Tanggal Dipilih -->
-            <div id="savedDateActivitiesContainer" class="space-y-2.5 max-h-[300px] overflow-y-auto pr-1"></div>
-          </div>
-
-          <!-- Ringkasan Akumulasi Poin per Tanggal (Navigasi Cepat Antar Tanggal) -->
-          <div class="mt-4 pt-3 border-t border-slate-100">
-            <p class="text-[11px] font-bold text-slate-600 mb-2">📊 Akumulasi Poin per Tanggal (Input Kinerja Harian):</p>
-            <div id="dailyPointsChipsContainer" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto"></div>
+            <div id="savedDateActivitiesContainer" class="space-y-2.5 max-h-[320px] overflow-y-auto pr-1"></div>
           </div>
         </div>
       </div>
@@ -1106,7 +1113,6 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     let reports = [];
     let currentGroupedHistory = [];
 
-    // Helper cek apakah record berasal dari Input Kinerja Harian individual pegawai
     function isIndividualDailyReport(reportItem) {
       return reportItem && reportItem.status === INDIVIDUAL_STATUS_TAG;
     }
@@ -1518,7 +1524,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       }
       if (!document.getElementById("reportDetailView").classList.contains("hidden") && selectedEmployeeId) {
         renderSavedDateActivities();
-        renderDailyPointsChips();
+        renderSavedDateSelector();
         renderReports();
       }
     }
@@ -2314,6 +2320,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
 
       // Reset form input individual
       document.getElementById("empSingleDate").value = today;
+      document.getElementById("savedDateQuickPicker").value = today;
       document.getElementById("empPresetSearchInput").value = "";
       document.getElementById("empSingleTitle").value = "";
       document.getElementById("empSelectedPresetMeta").textContent = "";
@@ -2329,43 +2336,55 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       document.getElementById("reportDetailView").classList.remove("hidden");
 
       renderSavedDateActivities();
-      renderDailyPointsChips();
+      renderSavedDateSelector();
       renderReports();
+    }
+
+    function syncSelectedWorkDate(dateStr) {
+      if (!dateStr) return;
+      document.getElementById("empSingleDate").value = dateStr;
+      document.getElementById("savedDateQuickPicker").value = dateStr;
+      renderSavedDateActivities();
+      renderSavedDateSelector();
     }
 
     function onEmployeeDateFilterChange() {
       const filterDate = document.getElementById("reportDate").value;
       if (filterDate) {
-        document.getElementById("empSingleDate").value = filterDate;
-        renderSavedDateActivities();
-        renderDailyPointsChips();
+        syncSelectedWorkDate(filterDate);
       }
       renderReports();
     }
 
     function onEmpSingleDateChange() {
-      renderSavedDateActivities();
-      renderDailyPointsChips();
+      const val = document.getElementById("empSingleDate").value;
+      syncSelectedWorkDate(val);
+    }
+
+    function onSavedDateDropdownChange() {
+      const val = document.getElementById("savedDateHistorySelect").value;
+      if (val) {
+        syncSelectedWorkDate(val);
+      }
+    }
+
+    function onSavedDatePickerChange() {
+      const val = document.getElementById("savedDateQuickPicker").value;
+      if (val) {
+        syncSelectedWorkDate(val);
+      }
     }
 
     function setTodayDateFilter() {
       const today = getTodayISO();
       document.getElementById("reportDate").value = today;
-      document.getElementById("empSingleDate").value = today;
-      renderSavedDateActivities();
-      renderDailyPointsChips();
+      syncSelectedWorkDate(today);
       renderReports();
     }
 
     function resetDateFilter() {
       document.getElementById("reportDate").value = "";
       renderReports();
-    }
-
-    function selectSavedDateChip(dateStr) {
-      document.getElementById("empSingleDate").value = dateStr;
-      renderSavedDateActivities();
-      renderDailyPointsChips();
     }
 
     // Simpan Kinerja Harian Pegawai (Ditandai khusus dengan status: INDIVIDUAL_STATUS_TAG)
@@ -2419,8 +2438,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
         document.getElementById("empSelectedPresetMeta").textContent = "";
         selectedSinglePresetMeta = { minutes: 30, index: 1 };
 
-        renderSavedDateActivities();
-        renderDailyPointsChips();
+        syncSelectedWorkDate(reportDate);
         renderReports();
         showToast(`Kinerja harian tanggal ${reportDate} (+${formatNum(points)} Poin) berhasil disimpan!`);
       } catch (err) {
@@ -2438,6 +2456,45 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       return reports.filter(r => r.employee_id === empId && isIndividualDailyReport(r));
     }
 
+    function renderSavedDateSelector() {
+      const selectEl = document.getElementById("savedDateHistorySelect");
+      if (!selectEl || !selectedEmployeeId) return;
+
+      const activeDate = document.getElementById("empSingleDate").value || getTodayISO();
+      const individualReports = getIndividualReportsForEmployee(selectedEmployeeId);
+
+      const dateMap = {};
+      individualReports.forEach(r => {
+        const d = r.report_date || "-";
+        if (!dateMap[d]) {
+          dateMap[d] = { count: 0, points: 0 };
+        }
+        dateMap[d].count += 1;
+        dateMap[d].points += Number(r.duration_minutes || 0) * Number(r.index_val || 1);
+      });
+
+      const sortedDates = Object.keys(dateMap).sort((a, b) => b.localeCompare(a));
+
+      if (sortedDates.length === 0) {
+        selectEl.innerHTML = `<option value="${activeDate}">${activeDate} — 0 Poin (Belum ada data)</option>`;
+        selectEl.value = activeDate;
+        return;
+      }
+
+      let optionsHtml = "";
+      if (!dateMap[activeDate]) {
+        optionsHtml += `<option value="${activeDate}">${activeDate} — 0 Poin (0 Kegiatan)</option>`;
+      }
+
+      optionsHtml += sortedDates.map(d => {
+        const info = dateMap[d];
+        return `<option value="${d}">${d} — ${formatNum(info.points)} Poin (${info.count} Kegiatan)</option>`;
+      }).join("");
+
+      selectEl.innerHTML = optionsHtml;
+      selectEl.value = activeDate;
+    }
+
     function renderSavedDateActivities() {
       if (!selectedEmployeeId) return;
       const targetDate = document.getElementById("empSingleDate").value || getTodayISO();
@@ -2450,7 +2507,6 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
 
       if (headingLabel) headingLabel.textContent = targetDate;
 
-      // Hanya filter kinerja yang diinput dari menu Input Kinerja Harian individual
       const itemsOnDate = getIndividualReportsForEmployee(selectedEmployeeId)
         .filter(r => r.report_date === targetDate);
 
@@ -2505,46 +2561,6 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
               </div>
             </div>
           </div>
-        `;
-      }).join("");
-    }
-
-    function renderDailyPointsChips() {
-      const chipsEl = document.getElementById("dailyPointsChipsContainer");
-      if (!chipsEl || !selectedEmployeeId) return;
-
-      const activeDate = document.getElementById("empSingleDate").value || getTodayISO();
-      const individualReports = getIndividualReportsForEmployee(selectedEmployeeId);
-
-      if (individualReports.length === 0) {
-        chipsEl.innerHTML = `<span class="text-[11px] text-slate-400">Belum ada akumulasi poin dari Input Kinerja Harian.</span>`;
-        return;
-      }
-
-      const dateMap = {};
-      individualReports.forEach(r => {
-        const d = r.report_date || "-";
-        if (!dateMap[d]) {
-          dateMap[d] = { count: 0, points: 0 };
-        }
-        dateMap[d].count += 1;
-        dateMap[d].points += Number(r.duration_minutes || 0) * Number(r.index_val || 1);
-      });
-
-      const sortedDates = Object.keys(dateMap).sort((a, b) => b.localeCompare(a));
-
-      chipsEl.innerHTML = sortedDates.map(d => {
-        const isSelected = d === activeDate;
-        const info = dateMap[d];
-        return `
-          <button type="button" onclick="selectSavedDateChip('${d}')"
-            class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition ${
-              isSelected
-                ? "bg-teal-600 text-white border-teal-600 shadow-sm"
-                : "bg-slate-50 hover:bg-teal-50 text-slate-700 border-slate-200 hover:border-teal-300"
-            }">
-            📅 ${d} • <span class="${isSelected ? 'text-amber-200' : 'text-amber-700'} font-bold">${formatNum(info.points)} Poin</span>
-          </button>
         `;
       }).join("");
     }
@@ -2668,7 +2684,7 @@ ${lines}
       saveLocalData();
       closeEditSingleActivityModal();
       renderSavedDateActivities();
-      renderDailyPointsChips();
+      renderSavedDateSelector();
       renderReports();
       showToast("Kinerja harian berhasil diperbarui!");
     }
@@ -2692,7 +2708,7 @@ ${lines}
       reports = reports.filter(r => r.id !== repId);
       saveLocalData();
       renderSavedDateActivities();
-      renderDailyPointsChips();
+      renderSavedDateSelector();
       renderReports();
       showToast("Kegiatan dihapus.");
     }
