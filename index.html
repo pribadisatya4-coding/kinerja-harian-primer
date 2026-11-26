@@ -341,7 +341,7 @@
           </div>
         </div>
 
-        <!-- Kolom Kanan (7 Kolom): Kinerja Tersimpan Tanggal & Akumulasi Poin per Tanggal -->
+        <!-- Kolom Kanan (7 Kolom): Kinerja Tersimpan Tanggal & Akumulasi Poin per Tanggal (Hanya dari Input Kinerja Harian) -->
         <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
           <div>
             <!-- Header Panel -->
@@ -350,7 +350,7 @@
                 <h3 class="text-base font-bold text-slate-900">
                   📋 Kinerja Tersimpan Tanggal <span id="savedDateHeadingLabel" class="text-teal-700">-</span>
                 </h3>
-                <p class="text-xs text-slate-500">Gabungan kinerja harian tersimpan & akumulasi poin pada tanggal yang dipilih.</p>
+                <p class="text-xs text-slate-500">Hanya menampilkan kinerja yang diinput dari menu <strong>Input Kinerja Harian</strong>.</p>
               </div>
               <div class="flex flex-wrap items-center gap-1.5">
                 <button type="button" onclick="copySavedDateActivities()"
@@ -386,7 +386,7 @@
 
           <!-- Ringkasan Akumulasi Poin per Tanggal (Navigasi Cepat Antar Tanggal) -->
           <div class="mt-4 pt-3 border-t border-slate-100">
-            <p class="text-[11px] font-bold text-slate-600 mb-2">📊 Akumulasi Poin per Tanggal (Klik tanggal untuk melihat detail):</p>
+            <p class="text-[11px] font-bold text-slate-600 mb-2">📊 Akumulasi Poin per Tanggal (Input Kinerja Harian):</p>
             <div id="dailyPointsChipsContainer" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto"></div>
           </div>
         </div>
@@ -1090,6 +1090,9 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     let isSupabaseConnected = false;
     let selectedEmployeeId = null;
 
+    // Penanda khusus kinerja yang diinput dari menu Input Kinerja Harian individual pegawai
+    const INDIVIDUAL_STATUS_TAG = "Selesai (Individual)";
+
     // Menyimpan durasi & indeks terpilih dari master aktivitas pada form pegawai
     let selectedSinglePresetMeta = { minutes: 30, index: 1 };
 
@@ -1102,6 +1105,11 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     let employees = [];
     let reports = [];
     let currentGroupedHistory = [];
+
+    // Helper cek apakah record berasal dari Input Kinerja Harian individual pegawai
+    function isIndividualDailyReport(reportItem) {
+      return reportItem && reportItem.status === INDIVIDUAL_STATUS_TAG;
+    }
 
     // =========================================================================
     // HELPER LOGO / FOTO PEGAWAI
@@ -2360,7 +2368,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       renderDailyPointsChips();
     }
 
-    // Simpan Kinerja Harian Pegawai
+    // Simpan Kinerja Harian Pegawai (Ditandai khusus dengan status: INDIVIDUAL_STATUS_TAG)
     async function addSingleEmployeeActivity(e) {
       e.preventDefault();
       if (!selectedEmployeeId) return;
@@ -2397,7 +2405,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
         eselon,
         index_val: indexVal,
         points,
-        status: "Selesai"
+        status: INDIVIDUAL_STATUS_TAG
       };
 
       const btn = document.getElementById("empSingleSubmitBtn");
@@ -2424,8 +2432,12 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     }
 
     // =========================================================================
-    // PANEL KANAN: KINERJA TERSIMPAN TANGGAL & AKUMULASI POIN PER TANGGAL
+    // PANEL KANAN: KINERJA TERSIMPAN TANGGAL (HANYA DARI INPUT KINERJA HARIAN)
     // =========================================================================
+    function getIndividualReportsForEmployee(empId) {
+      return reports.filter(r => r.employee_id === empId && isIndividualDailyReport(r));
+    }
+
     function renderSavedDateActivities() {
       if (!selectedEmployeeId) return;
       const targetDate = document.getElementById("empSingleDate").value || getTodayISO();
@@ -2438,7 +2450,10 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
 
       if (headingLabel) headingLabel.textContent = targetDate;
 
-      const itemsOnDate = reports.filter(r => r.employee_id === selectedEmployeeId && r.report_date === targetDate);
+      // Hanya filter kinerja yang diinput dari menu Input Kinerja Harian individual
+      const itemsOnDate = getIndividualReportsForEmployee(selectedEmployeeId)
+        .filter(r => r.report_date === targetDate);
+
       const totalMins = itemsOnDate.reduce((sum, r) => sum + Number(r.duration_minutes || 0), 0);
       const totalPts = itemsOnDate.reduce((sum, r) => sum + (Number(r.duration_minutes || 0) * Number(r.index_val || 1)), 0);
 
@@ -2451,7 +2466,7 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       if (itemsOnDate.length === 0) {
         container.innerHTML = `
           <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-6 text-center text-xs text-slate-500">
-            Belum ada kinerja harian yang disimpan pada tanggal <strong>${targetDate}</strong>.<br/>
+            Belum ada kinerja yang diinput dari <strong>Input Kinerja Harian</strong> pada tanggal <strong>${targetDate}</strong>.<br/>
             Silakan pilih atau ketik uraian kinerja di sebelah kiri lalu klik <strong>Simpan Kinerja Harian</strong>.
           </div>
         `;
@@ -2499,16 +2514,15 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
       if (!chipsEl || !selectedEmployeeId) return;
 
       const activeDate = document.getElementById("empSingleDate").value || getTodayISO();
-      const empReports = reports.filter(r => r.employee_id === selectedEmployeeId);
+      const individualReports = getIndividualReportsForEmployee(selectedEmployeeId);
 
-      if (empReports.length === 0) {
-        chipsEl.innerHTML = `<span class="text-[11px] text-slate-400">Belum ada akumulasi poin harian tercatat.</span>`;
+      if (individualReports.length === 0) {
+        chipsEl.innerHTML = `<span class="text-[11px] text-slate-400">Belum ada akumulasi poin dari Input Kinerja Harian.</span>`;
         return;
       }
 
-      // Kelompokkan per tanggal dan hitung akumulasi poinnya
       const dateMap = {};
-      empReports.forEach(r => {
+      individualReports.forEach(r => {
         const d = r.report_date || "-";
         if (!dateMap[d]) {
           dateMap[d] = { count: 0, points: 0 };
@@ -2537,7 +2551,8 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
 
     function copySavedDateActivities() {
       const targetDate = document.getElementById("empSingleDate").value || getTodayISO();
-      const itemsOnDate = reports.filter(r => r.employee_id === selectedEmployeeId && r.report_date === targetDate);
+      const itemsOnDate = getIndividualReportsForEmployee(selectedEmployeeId)
+        .filter(r => r.report_date === targetDate);
 
       if (itemsOnDate.length === 0) {
         showToast(`Belum ada kinerja tersimpan pada tanggal ${targetDate}.`);
@@ -2552,7 +2567,8 @@ CREATE POLICY "Public Access Presets" ON preset_activities FOR ALL USING (true) 
     function copySavedDateRecapWithPoints() {
       const emp = employees.find(e => e.id === selectedEmployeeId);
       const targetDate = document.getElementById("empSingleDate").value || getTodayISO();
-      const itemsOnDate = reports.filter(r => r.employee_id === selectedEmployeeId && r.report_date === targetDate);
+      const itemsOnDate = getIndividualReportsForEmployee(selectedEmployeeId)
+        .filter(r => r.report_date === targetDate);
 
       if (!emp || itemsOnDate.length === 0) {
         showToast(`Belum ada kinerja tersimpan pada tanggal ${targetDate}.`);
@@ -2740,6 +2756,7 @@ ${lines}
         const mins = Number(item.duration_minutes || 0);
         const idxVal = Number(item.index_val || 1);
         const pts = mins * idxVal;
+        const isIndiv = isIndividualDailyReport(item);
 
         return `
           <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:border-slate-300 transition">
@@ -2755,8 +2772,8 @@ ${lines}
                   ${mins} × ${formatNum(idxVal)} = ${formatNum(pts)} Poin
                 </span>
               </div>
-              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-                ${item.status || 'Selesai'}
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full ${isIndiv ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700'}">
+                ${isIndiv ? 'Input Kinerja Harian' : (item.status || 'Selesai')}
               </span>
             </div>
 
